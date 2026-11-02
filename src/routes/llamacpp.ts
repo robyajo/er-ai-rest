@@ -5,16 +5,16 @@ import { getForbiddenMessage, isScopeAllowedForProvider } from '../auth.js';
 import {
   executeLlamaCpp,
   executeLlamaCppStream,
-  fetchLlamaServerModels,
+  fetchLlamaDynamicModels,
   isLlamaServerReachable,
-  SUPPORTED_LLAMA_MODELS,
+  scanAllLocalGgufFiles,
 } from '../llamacpp.js';
 import {
   formatOpenAIChunk,
   formatOpenAIResponse,
   messagesToPrompt,
 } from '../openai.js';
-import type { AuthScope, ChatRequest, ModelInfo, OpenAIChatRequest } from '../types.js';
+import type { AuthScope, ChatRequest, OpenAIChatRequest } from '../types.js';
 
 type Env = {
   Variables: {
@@ -42,41 +42,34 @@ llamaRouter.use('*', async (c, next) => {
   return next();
 });
 
-// Helper: Get available llama models (static + server)
-async function getLlamaModels(): Promise<ModelInfo[]> {
-  const serverModels = await fetchLlamaServerModels();
-  const modelsMap = new Map<string, ModelInfo>();
-
-  for (const m of SUPPORTED_LLAMA_MODELS) {
-    modelsMap.set(m.id, m);
-  }
-
-  for (const m of serverModels) {
-    modelsMap.set(m.id, m);
-  }
-
-  return Array.from(modelsMap.values());
-}
-
-// GET /llama/status
+// GET /llama/status (Check server & local discovery)
 llamaRouter.get('/status', async (c) => {
   const reachable = await isLlamaServerReachable();
+  const localFiles = scanAllLocalGgufFiles();
   return c.json({
     status: 'ok',
     mode: reachable ? 'server_connected' : 'cli_fallback',
     server_reachable: reachable,
+    local_gguf_count: localFiles.length,
+    local_files: localFiles,
   });
 });
 
-// GET /llama/models
+// GET /llama/models (Dynamic models discovery)
 llamaRouter.get('/models', async (c) => {
-  const models = await getLlamaModels();
-  return c.json({ models });
+  const fresh = c.req.query('fresh') === 'true';
+  const models = await fetchLlamaDynamicModels(fresh);
+  return c.json({
+    total: models.length,
+    source: 'llama_dynamic_discovery',
+    models,
+  });
 });
 
-// GET /llama/v1/models
+// GET /llama/v1/models (OpenAI format, dynamic)
 llamaRouter.get('/v1/models', async (c) => {
-  const models = await getLlamaModels();
+  const fresh = c.req.query('fresh') === 'true';
+  const models = await fetchLlamaDynamicModels(fresh);
   return c.json({
     object: 'list',
     data: models.map((m) => ({

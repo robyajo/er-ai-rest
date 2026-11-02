@@ -1,43 +1,57 @@
-import { spawn } from "node:child_process";
-import { existsSync } from "node:fs";
+import { spawn } from 'node:child_process';
+import { existsSync } from 'node:fs';
+import { homedir } from 'node:os';
+import { join } from 'node:path';
 import type {
   ChatRequest,
   ChatResponse,
   AgyStreamEvent,
   ModelInfo,
-} from "./types.js";
+} from './types.js';
 
-function getAgyBinary(): string {
+export function getAgyBinary(): string {
   if (process.env.AGY_PATH && existsSync(process.env.AGY_PATH)) {
     return process.env.AGY_PATH;
   }
-  const defaultPath = "/home/roby/.local/bin/agy";
-  if (existsSync(defaultPath)) {
-    return defaultPath;
+
+  const userHome = homedir();
+  const candidates = [
+    join(userHome, '.gemini/bin/agy'),
+    join(userHome, '.local/bin/agy'),
+    '/usr/local/bin/agy',
+    '/opt/homebrew/bin/agy',
+    '/home/roby/.local/bin/agy',
+  ];
+
+  for (const c of candidates) {
+    if (existsSync(c)) {
+      return c;
+    }
   }
-  return "agy";
+
+  return 'agy';
 }
 
 function buildArgs(
   req: ChatRequest,
-  outputFormat: "json" | "stream-json",
+  outputFormat: 'json' | 'stream-json'
 ): string[] {
-  const args: string[] = ["-p", req.prompt, "--output-format", outputFormat];
+  const args: string[] = ['-p', req.prompt, '--output-format', outputFormat];
 
   if (req.conversation_id) {
-    args.push("--conversation", req.conversation_id);
+    args.push('--conversation', req.conversation_id);
   }
   if (req.model) {
-    args.push("--model", req.model);
+    args.push('--model', req.model);
   }
   if (req.effort) {
-    args.push("--effort", req.effort);
+    args.push('--effort', req.effort);
   }
   if (req.mode) {
-    args.push("--mode", req.mode);
+    args.push('--mode', req.mode);
   }
   if (req.dangerously_skip_permissions) {
-    args.push("--dangerously-skip-permissions");
+    args.push('--dangerously-skip-permissions');
   }
 
   return args;
@@ -45,7 +59,7 @@ function buildArgs(
 
 export async function executeAgy(req: ChatRequest): Promise<ChatResponse> {
   const agyBinary = getAgyBinary();
-  const args = buildArgs(req, "json");
+  const args = buildArgs(req, 'json');
 
   return new Promise((resolve) => {
     const proc = spawn(agyBinary, args, {
@@ -53,33 +67,32 @@ export async function executeAgy(req: ChatRequest): Promise<ChatResponse> {
       env: { ...process.env },
     });
 
-    let stdout = "";
-    let stderr = "";
+    let stdout = '';
+    let stderr = '';
 
-    proc.stdout.on("data", (data) => {
+    proc.stdout.on('data', (data) => {
       stdout += data.toString();
     });
 
-    proc.stderr.on("data", (data) => {
+    proc.stderr.on('data', (data) => {
       stderr += data.toString();
     });
 
-    proc.on("close", (code) => {
+    proc.on('close', (code) => {
       if (code !== 0 && !stdout) {
         resolve({
           success: false,
-          response: "",
+          response: '',
           error: stderr.trim() || `Process exited with code ${code}`,
-          provider: "agy",
+          provider: 'agy',
         });
         return;
       }
 
-      // Find the JSON object line in stdout
-      const lines = stdout.split("\n");
+      const lines = stdout.split('\n');
       for (let i = lines.length - 1; i >= 0; i--) {
         const line = lines[i].trim();
-        if (line.startsWith("{") && line.endsWith("}")) {
+        if (line.startsWith('{') && line.endsWith('}')) {
           try {
             const parsed = JSON.parse(line);
             if (
@@ -87,13 +100,13 @@ export async function executeAgy(req: ChatRequest): Promise<ChatResponse> {
               parsed.conversation_id !== undefined
             ) {
               resolve({
-                success: parsed.status === "SUCCESS" || true,
+                success: parsed.status === 'SUCCESS' || true,
                 conversation_id: parsed.conversation_id,
-                response: parsed.response || "",
+                response: parsed.response || '',
                 duration_seconds: parsed.duration_seconds,
                 num_turns: parsed.num_turns,
                 usage: parsed.usage,
-                provider: "agy",
+                provider: 'agy',
               });
               return;
             }
@@ -107,16 +120,16 @@ export async function executeAgy(req: ChatRequest): Promise<ChatResponse> {
         success: code === 0,
         response: stdout.trim(),
         error: code !== 0 ? stderr.trim() : undefined,
-        provider: "agy",
+        provider: 'agy',
       });
     });
 
-    proc.on("error", (err) => {
+    proc.on('error', (err) => {
       resolve({
         success: false,
-        response: "",
+        response: '',
         error: `Failed to spawn agy: ${err.message}`,
-        provider: "agy",
+        provider: 'agy',
       });
     });
   });
@@ -126,10 +139,10 @@ export async function executeAgyStream(
   req: ChatRequest,
   onDelta: (text: string) => void | Promise<void>,
   onComplete: (result: ChatResponse) => void | Promise<void>,
-  onError: (error: string) => void | Promise<void>,
+  onError: (error: string) => void | Promise<void>
 ): Promise<void> {
   const agyBinary = getAgyBinary();
-  const args = buildArgs(req, "stream-json");
+  const args = buildArgs(req, 'stream-json');
 
   return new Promise<void>((resolve) => {
     const proc = spawn(agyBinary, args, {
@@ -137,18 +150,18 @@ export async function executeAgyStream(
       env: { ...process.env },
     });
 
-    let buffer = "";
-    let fullResponse = "";
+    let buffer = '';
+    let fullResponse = '';
     let finalResult: ChatResponse = {
       success: true,
-      response: "",
-      provider: "agy",
+      response: '',
+      provider: 'agy',
     };
 
-    proc.stdout.on("data", async (chunk) => {
+    proc.stdout.on('data', async (chunk) => {
       buffer += chunk.toString();
-      const lines = buffer.split("\n");
-      buffer = lines.pop() || "";
+      const lines = buffer.split('\n');
+      buffer = lines.pop() || '';
 
       for (const line of lines) {
         const trimmed = line.trim();
@@ -157,22 +170,19 @@ export async function executeAgyStream(
         try {
           const parsed = JSON.parse(trimmed) as AgyStreamEvent;
 
-          if (
-            parsed.event === "step_update" &&
-            parsed.step_update?.text_delta
-          ) {
+          if (parsed.event === 'step_update' && parsed.step_update?.text_delta) {
             const delta = parsed.step_update.text_delta;
             fullResponse += delta;
             await onDelta(delta);
-          } else if (parsed.event === "result" && parsed.result) {
+          } else if (parsed.event === 'result' && parsed.result) {
             finalResult = {
-              success: parsed.result.status === "SUCCESS",
+              success: parsed.result.status === 'SUCCESS',
               conversation_id: parsed.result.conversation_id,
               response: parsed.result.response || fullResponse,
               duration_seconds: parsed.result.duration_seconds,
               num_turns: parsed.result.num_turns,
               usage: parsed.result.usage as any,
-              provider: "agy",
+              provider: 'agy',
             };
           }
         } catch {
@@ -181,12 +191,12 @@ export async function executeAgyStream(
       }
     });
 
-    let stderr = "";
-    proc.stderr.on("data", (data) => {
+    let stderr = '';
+    proc.stderr.on('data', (data) => {
       stderr += data.toString();
     });
 
-    proc.on("close", async (code) => {
+    proc.on('close', async (code) => {
       if (code !== 0 && !fullResponse) {
         await onError(stderr.trim() || `Process exited with code ${code}`);
       } else {
@@ -196,7 +206,7 @@ export async function executeAgyStream(
       resolve();
     });
 
-    proc.on("error", async (err) => {
+    proc.on('error', async (err) => {
       await onError(`Failed to spawn agy: ${err.message}`);
       resolve();
     });
@@ -205,39 +215,115 @@ export async function executeAgyStream(
 
 export const SUPPORTED_MODELS: ModelInfo[] = [
   {
-    id: "gemini-3.8-flash-high",
-    name: "Gemini 3.8 Flash (High)",
-    provider: "agy",
-    description: "Google Antigravity Gemini 3.8 Flash with high reasoning",
+    id: 'gemini-3.8-flash-high',
+    name: 'Gemini 3.8 Flash (High)',
+    provider: 'agy',
+    description: 'Google Antigravity Gemini 3.8 Flash with high reasoning',
   },
   {
-    id: "gemini-3.8-flash-medium",
-    name: "Gemini 3.8 Flash (Medium)",
-    provider: "agy",
-    description: "Google Antigravity Gemini 3.8 Flash with medium reasoning",
+    id: 'gemini-3.8-flash-medium',
+    name: 'Gemini 3.8 Flash (Medium)',
+    provider: 'agy',
+    description: 'Google Antigravity Gemini 3.8 Flash with medium reasoning',
   },
   {
-    id: "gemini-3.8-flash-low",
-    name: "Gemini 3.8 Flash (Low)",
-    provider: "agy",
-    description: "Google Antigravity Gemini 3.8 Flash with low reasoning",
+    id: 'gemini-3.8-flash-low',
+    name: 'Gemini 3.8 Flash (Low)',
+    provider: 'agy',
+    description: 'Google Antigravity Gemini 3.8 Flash with low reasoning',
   },
   {
-    id: "claude-sonnet-4-6",
-    name: "Claude Sonnet 4.6 (Thinking)",
-    provider: "agy",
-    description: "Anthropic Claude Sonnet 4.6 with thinking capabilities",
+    id: 'claude-sonnet-4-6',
+    name: 'Claude Sonnet 4.6 (Thinking)',
+    provider: 'agy',
+    description: 'Anthropic Claude Sonnet 4.6 with thinking capabilities',
   },
   {
-    id: "claude-opus-4-6-thinking",
-    name: "Claude Opus 4.6 (Thinking)",
-    provider: "agy",
-    description: "Anthropic Claude Opus 4.6 thinking powerhouse",
+    id: 'claude-opus-4-6-thinking',
+    name: 'Claude Opus 4.6 (Thinking)',
+    provider: 'agy',
+    description: 'Anthropic Claude Opus 4.6 thinking powerhouse',
   },
   {
-    id: "gpt-oss-120b-medium",
-    name: "GPT-OSS 120B (Medium)",
-    provider: "agy",
-    description: "Open weights GPT-OSS 120B model",
+    id: 'gpt-oss-120b-medium',
+    name: 'GPT-OSS 120B (Medium)',
+    provider: 'agy',
+    description: 'Open weights GPT-OSS 120B model',
   },
 ];
+
+let cachedAgyModels: ModelInfo[] | null = null;
+let lastAgyFetchTime = 0;
+const AGY_CACHE_TTL_MS = 60_000; // 1 minute TTL cache
+
+/**
+ * Dynamically queries available models from `agy models` CLI
+ */
+export async function fetchAgyDynamicModels(forceFresh = false): Promise<ModelInfo[]> {
+  const now = Date.now();
+  if (!forceFresh && cachedAgyModels && now - lastAgyFetchTime < AGY_CACHE_TTL_MS) {
+    return cachedAgyModels;
+  }
+
+  const binary = getAgyBinary();
+  return new Promise((resolve) => {
+    const proc = spawn(binary, ['models'], {
+      env: { ...process.env, TERM: 'dumb' },
+    });
+
+    let stdout = '';
+    proc.stdout.on('data', (d) => {
+      stdout += d.toString();
+    });
+
+    const timer = setTimeout(() => {
+      try {
+        proc.kill('SIGTERM');
+      } catch {}
+      resolve(cachedAgyModels || SUPPORTED_MODELS);
+    }, 4000);
+
+    proc.on('close', (code) => {
+      clearTimeout(timer);
+      if (code === 0 && stdout) {
+        const clean = stdout
+          .replace(/\u001b\[[0-9;]*m/g, '')
+          .replace(/[\r\n]+/g, '\n');
+
+        const parsedModels: ModelInfo[] = [];
+        const lines = clean.split('\n');
+
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (!trimmed || trimmed.includes('Fetching available models')) continue;
+
+          const match = trimmed.match(/^([a-zA-Z0-9._-]+)\s+(.+)$/);
+          if (match) {
+            const id = match[1];
+            const name = match[2].trim();
+            parsedModels.push({
+              id,
+              name,
+              provider: 'agy',
+              description: `Live cloud model from Antigravity: ${name}`,
+            });
+          }
+        }
+
+        if (parsedModels.length > 0) {
+          cachedAgyModels = parsedModels;
+          lastAgyFetchTime = now;
+          resolve(parsedModels);
+          return;
+        }
+      }
+
+      resolve(cachedAgyModels || SUPPORTED_MODELS);
+    });
+
+    proc.on('error', () => {
+      clearTimeout(timer);
+      resolve(cachedAgyModels || SUPPORTED_MODELS);
+    });
+  });
+}

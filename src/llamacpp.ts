@@ -1,16 +1,52 @@
 import { spawn } from 'node:child_process';
-import { existsSync, readdirSync } from 'node:fs';
+import { existsSync, readdirSync, statSync } from 'node:fs';
 import { homedir } from 'node:os';
-import { join } from 'node:path';
-import type { ChatRequest, ChatResponse, ModelInfo, OpenAIChatRequest, OpenAIMessage } from './types.js';
+import { basename, join } from 'node:path';
+import type {
+  ChatRequest,
+  ChatResponse,
+  ModelInfo,
+  OpenAIChatRequest,
+  OpenAIMessage,
+} from './types.js';
 
 export const SUPPORTED_LLAMA_MODELS: ModelInfo[] = [
-  { id: 'qwen3.5-0.8b', name: 'Qwen 3.5 0.8B (Local GGUF)', provider: 'llamacpp', description: 'Ultra-fast lightweight local GGUF model' },
-  { id: 'llama-3.2-1b', name: 'Llama 3.2 1B Instruct (Local GGUF)', provider: 'llamacpp', description: 'Compact Meta Llama 3.2 instruction model' },
-  { id: 'llama-3.2-3b', name: 'Llama 3.2 3B Instruct (Local GGUF)', provider: 'llamacpp', description: 'Balanced Meta Llama 3.2 instruction model' },
-  { id: 'mistral-7b', name: 'Mistral 7B Instruct (Local GGUF)', provider: 'llamacpp', description: 'Powerful general instruction model' },
-  { id: 'deepseek-r1-distill-qwen-7b', name: 'DeepSeek R1 Distill Qwen 7B (Local GGUF)', provider: 'llamacpp', description: 'Reasoning-focused local GGUF model' },
-  { id: 'local-gguf', name: 'Default Local GGUF Model', provider: 'llamacpp', description: 'Configured local GGUF model file' },
+  {
+    id: 'qwen3.5-0.8b',
+    name: 'Qwen 3.5 0.8B (Local GGUF)',
+    provider: 'llamacpp',
+    description: 'Ultra-fast lightweight local GGUF model',
+  },
+  {
+    id: 'llama-3.2-1b',
+    name: 'Llama 3.2 1B Instruct (Local GGUF)',
+    provider: 'llamacpp',
+    description: 'Compact Meta Llama 3.2 instruction model',
+  },
+  {
+    id: 'llama-3.2-3b',
+    name: 'Llama 3.2 3B Instruct (Local GGUF)',
+    provider: 'llamacpp',
+    description: 'Balanced Meta Llama 3.2 instruction model',
+  },
+  {
+    id: 'mistral-7b',
+    name: 'Mistral 7B Instruct (Local GGUF)',
+    provider: 'llamacpp',
+    description: 'Powerful general instruction model',
+  },
+  {
+    id: 'deepseek-r1-distill-qwen-7b',
+    name: 'DeepSeek R1 Distill Qwen 7B (Local GGUF)',
+    provider: 'llamacpp',
+    description: 'Reasoning-focused local GGUF model',
+  },
+  {
+    id: 'local-gguf',
+    name: 'Default Local GGUF Model',
+    provider: 'llamacpp',
+    description: 'Configured local GGUF model file',
+  },
 ];
 
 /**
@@ -21,7 +57,10 @@ export function isLlamaCppTarget(model?: string, provider?: string): boolean {
   if (provider === 'agy') return false;
 
   if (!model) {
-    return process.env.DEFAULT_PROVIDER === 'llamacpp' || process.env.DEFAULT_PROVIDER === 'llama';
+    return (
+      process.env.DEFAULT_PROVIDER === 'llamacpp' ||
+      process.env.DEFAULT_PROVIDER === 'llama'
+    );
   }
 
   const m = model.toLowerCase();
@@ -42,8 +81,15 @@ export function isLlamaCppTarget(model?: string, provider?: string): boolean {
     return true;
   }
 
-  if (process.env.DEFAULT_PROVIDER === 'llamacpp' || process.env.DEFAULT_PROVIDER === 'llama') {
-    if (m.startsWith('gemini-') || m.startsWith('claude-') || m.startsWith('gpt-oss-')) {
+  if (
+    process.env.DEFAULT_PROVIDER === 'llamacpp' ||
+    process.env.DEFAULT_PROVIDER === 'llama'
+  ) {
+    if (
+      m.startsWith('gemini-') ||
+      m.startsWith('claude-') ||
+      m.startsWith('gpt-oss-')
+    ) {
       return false;
     }
     return true;
@@ -92,7 +138,10 @@ export function getLlamaModelPath(requestedModel?: string): string {
   if (requestedModel && existsSync(requestedModel)) {
     return requestedModel;
   }
-  if (process.env.LLAMA_MODEL_PATH && existsSync(process.env.LLAMA_MODEL_PATH)) {
+  if (
+    process.env.LLAMA_MODEL_PATH &&
+    existsSync(process.env.LLAMA_MODEL_PATH)
+  ) {
     return process.env.LLAMA_MODEL_PATH;
   }
 
@@ -104,16 +153,17 @@ export function getLlamaModelPath(requestedModel?: string): string {
     join(userHome, '.llama-app/models'),
   ];
 
-  const keyword = requestedModel && requestedModel !== 'local-gguf' ? requestedModel.toLowerCase() : undefined;
+  const keyword =
+    requestedModel && requestedModel !== 'local-gguf'
+      ? requestedModel.toLowerCase()
+      : undefined;
 
   for (const dir of searchDirs) {
     if (existsSync(dir)) {
       try {
         const found = findGgufFileRecursive(dir, 8, keyword);
         if (found) return found;
-      } catch {
-        // ignore search error
-      }
+      } catch {}
     }
   }
 
@@ -123,9 +173,7 @@ export function getLlamaModelPath(requestedModel?: string): string {
         try {
           const found = findGgufFileRecursive(dir, 8);
           if (found) return found;
-        } catch {
-          // ignore search error
-        }
+        } catch {}
       }
     }
   }
@@ -133,7 +181,11 @@ export function getLlamaModelPath(requestedModel?: string): string {
   return '';
 }
 
-function findGgufFileRecursive(dir: string, maxDepth: number, keyword?: string): string | null {
+function findGgufFileRecursive(
+  dir: string,
+  maxDepth: number,
+  keyword?: string
+): string | null {
   if (maxDepth <= 0) return null;
   let entries;
   try {
@@ -142,19 +194,27 @@ function findGgufFileRecursive(dir: string, maxDepth: number, keyword?: string):
     return null;
   }
 
-  // First pass: check files and symlinks
   for (const entry of entries) {
-    if ((entry.isFile() || entry.isSymbolicLink()) && entry.name.toLowerCase().endsWith('.gguf')) {
+    if (
+      (entry.isFile() || entry.isSymbolicLink()) &&
+      entry.name.toLowerCase().endsWith('.gguf')
+    ) {
       const fullPath = join(dir, entry.name);
-      if (!keyword || entry.name.toLowerCase().includes(keyword) || fullPath.toLowerCase().includes(keyword)) {
+      if (
+        !keyword ||
+        entry.name.toLowerCase().includes(keyword) ||
+        fullPath.toLowerCase().includes(keyword)
+      ) {
         return fullPath;
       }
     }
   }
 
-  // Second pass: recurse into directories (and directory symlinks)
   for (const entry of entries) {
-    if (!entry.name.startsWith('.') && (entry.isDirectory() || entry.isSymbolicLink())) {
+    if (
+      !entry.name.startsWith('.') &&
+      (entry.isDirectory() || entry.isSymbolicLink())
+    ) {
       const fullPath = join(dir, entry.name);
       const nested = findGgufFileRecursive(fullPath, maxDepth - 1, keyword);
       if (nested) return nested;
@@ -162,6 +222,65 @@ function findGgufFileRecursive(dir: string, maxDepth: number, keyword?: string):
   }
 
   return null;
+}
+
+/**
+ * Scan filesystem for all available .gguf files
+ */
+export function scanAllLocalGgufFiles(): Array<{
+  path: string;
+  filename: string;
+  sizeMb: string;
+}> {
+  const userHome = homedir();
+  const searchDirs = [
+    join(userHome, '.cache/huggingface/hub'),
+    join(userHome, '.cache'),
+    join(userHome, 'models'),
+    join(userHome, '.llama-app/models'),
+  ];
+
+  if (process.env.LLAMA_MODELS_DIR && existsSync(process.env.LLAMA_MODELS_DIR)) {
+    searchDirs.unshift(process.env.LLAMA_MODELS_DIR);
+  }
+
+  const results: Array<{ path: string; filename: string; sizeMb: string }> = [];
+  const visitedPaths = new Set<string>();
+
+  function walk(dir: string, depth: number) {
+    if (depth <= 0 || !existsSync(dir)) return;
+    try {
+      const entries = readdirSync(dir, { withFileTypes: true });
+      for (const entry of entries) {
+        const fullPath = join(dir, entry.name);
+        if (
+          (entry.isFile() || entry.isSymbolicLink()) &&
+          entry.name.toLowerCase().endsWith('.gguf')
+        ) {
+          if (!visitedPaths.has(fullPath)) {
+            visitedPaths.add(fullPath);
+            let sizeMb = 'unknown';
+            try {
+              const st = statSync(fullPath);
+              sizeMb = `${(st.size / (1024 * 1024)).toFixed(1)} MB`;
+            } catch {}
+            results.push({ path: fullPath, filename: entry.name, sizeMb });
+          }
+        } else if (
+          !entry.name.startsWith('.') &&
+          (entry.isDirectory() || entry.isSymbolicLink())
+        ) {
+          walk(fullPath, depth - 1);
+        }
+      }
+    } catch {}
+  }
+
+  for (const d of searchDirs) {
+    walk(d, 8);
+  }
+
+  return results;
 }
 
 export async function isLlamaServerReachable(): Promise<boolean> {
@@ -201,12 +320,80 @@ export async function fetchLlamaServerModels(): Promise<ModelInfo[]> {
         id,
         name: `${cleanName} (llama.cpp server)`,
         provider: 'llamacpp',
-        description: `Model loaded on llama.cpp server at ${baseUrl}`,
+        description: `Model loaded on active llama.cpp server at ${baseUrl}`,
       };
     });
   } catch {
     return [];
   }
+}
+
+let cachedLlamaModels: ModelInfo[] | null = null;
+let lastLlamaFetchTime = 0;
+const LLAMA_CACHE_TTL_MS = 30_000; // 30s TTL cache
+
+/**
+ * Dynamically queries all available llama.cpp models from:
+ * 1. Active llama-server HTTP API
+ * 2. Scanned .gguf files on the local filesystem
+ * 3. Default known models fallback
+ */
+export async function fetchLlamaDynamicModels(
+  forceFresh = false
+): Promise<ModelInfo[]> {
+  const now = Date.now();
+  if (
+    !forceFresh &&
+    cachedLlamaModels &&
+    now - lastLlamaFetchTime < LLAMA_CACHE_TTL_MS
+  ) {
+    return cachedLlamaModels;
+  }
+
+  const modelsMap = new Map<string, ModelInfo>();
+
+  // 1. Check active llama-server models
+  const serverModels = await fetchLlamaServerModels();
+  for (const sm of serverModels) {
+    modelsMap.set(sm.id, sm);
+  }
+
+  // 2. Scan local filesystem for real .gguf files
+  const localFiles = scanAllLocalGgufFiles();
+  for (const f of localFiles) {
+    const rawName = f.filename.replace(/\.gguf$/i, '');
+    const cleanId = rawName.toLowerCase().replace(/[^a-z0-9._-]/g, '-');
+
+    modelsMap.set(cleanId, {
+      id: cleanId,
+      name: `${rawName} (Local GGUF - ${f.sizeMb})`,
+      provider: 'llamacpp',
+      description: `Discovered on disk: ${f.path} (${f.sizeMb})`,
+    });
+
+    // Provide friendly alias without quant suffix if present (e.g. Qwen3.5-0.8B)
+    const baseSlug = cleanId.split(/[-_](q[0-9]|f16|f32)/i)[0];
+    if (baseSlug && baseSlug !== cleanId && !modelsMap.has(baseSlug)) {
+      modelsMap.set(baseSlug, {
+        id: baseSlug,
+        name: `${rawName} (Alias - ${f.sizeMb})`,
+        provider: 'llamacpp',
+        description: `Alias for ${f.filename}`,
+      });
+    }
+  }
+
+  // 3. Include standard templates if no files were found on disk
+  if (modelsMap.size === 0) {
+    for (const m of SUPPORTED_LLAMA_MODELS) {
+      modelsMap.set(m.id, m);
+    }
+  }
+
+  const results = Array.from(modelsMap.values());
+  cachedLlamaModels = results;
+  lastLlamaFetchTime = now;
+  return results;
 }
 
 export async function executeLlamaCpp(req: ChatRequest): Promise<ChatResponse> {
@@ -315,7 +502,9 @@ async function executeLlamaServerHttpStream(
 
     if (!res.ok || !res.body) {
       const errText = await res.text();
-      await onError(`llama.cpp server stream error (${res.status}): ${errText}`);
+      await onError(
+        `llama.cpp server stream error (${res.status}): ${errText}`
+      );
       return;
     }
 
@@ -347,9 +536,7 @@ async function executeLlamaServerHttpStream(
               fullResponse += delta;
               await onDelta(delta);
             }
-          } catch {
-            // ignore chunk error
-          }
+          } catch {}
         }
       }
     }
@@ -367,7 +554,11 @@ async function executeLlamaServerHttpStream(
   }
 }
 
-function buildCliArgs(req: ChatRequest): { binary: string; args: string[]; error?: string } {
+function buildCliArgs(req: ChatRequest): {
+  binary: string;
+  args: string[];
+  error?: string;
+} {
   const binary = getLlamaBinary();
   const modelPath = getLlamaModelPath(req.model);
 

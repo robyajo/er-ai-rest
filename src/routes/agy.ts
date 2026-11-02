@@ -1,7 +1,12 @@
 import { Hono } from 'hono';
 import { streamSSE } from 'hono/streaming';
 import { randomUUID } from 'node:crypto';
-import { executeAgy, executeAgyStream, SUPPORTED_MODELS } from '../agy.js';
+import {
+  executeAgy,
+  executeAgyStream,
+  fetchAgyDynamicModels,
+  SUPPORTED_MODELS,
+} from '../agy.js';
 import { getForbiddenMessage, isScopeAllowedForProvider } from '../auth.js';
 import {
   formatOpenAIChunk,
@@ -36,16 +41,24 @@ agyRouter.use('*', async (c, next) => {
   return next();
 });
 
-// GET /agy/models
-agyRouter.get('/models', (c) => {
-  return c.json({ models: SUPPORTED_MODELS });
+// GET /agy/models (Dynamic query from CLI)
+agyRouter.get('/models', async (c) => {
+  const fresh = c.req.query('fresh') === 'true';
+  const models = await fetchAgyDynamicModels(fresh);
+  return c.json({
+    total: models.length,
+    source: 'antigravity_cli_live_discovery',
+    models,
+  });
 });
 
-// GET /agy/v1/models
-agyRouter.get('/v1/models', (c) => {
+// GET /agy/v1/models (OpenAI format, dynamic)
+agyRouter.get('/v1/models', async (c) => {
+  const fresh = c.req.query('fresh') === 'true';
+  const models = await fetchAgyDynamicModels(fresh);
   return c.json({
     object: 'list',
-    data: SUPPORTED_MODELS.map((m) => ({
+    data: models.map((m) => ({
       id: m.id,
       object: 'model',
       created: 1793568000,

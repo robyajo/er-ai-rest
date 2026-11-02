@@ -4,7 +4,11 @@ import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { streamSSE } from 'hono/streaming';
 import { randomUUID } from 'node:crypto';
-import { executeAgy, executeAgyStream, SUPPORTED_MODELS } from './agy.js';
+import {
+  executeAgy,
+  executeAgyStream,
+  fetchAgyDynamicModels,
+} from './agy.js';
 import {
   getClientToken,
   getForbiddenMessage,
@@ -14,10 +18,10 @@ import {
 import {
   executeLlamaCpp,
   executeLlamaCppStream,
-  fetchLlamaServerModels,
+  fetchLlamaDynamicModels,
   isLlamaCppTarget,
   isLlamaServerReachable,
-  SUPPORTED_LLAMA_MODELS,
+  scanAllLocalGgufFiles,
 } from './llamacpp.js';
 import {
   formatOpenAIChunk,
@@ -76,20 +80,18 @@ app.use('*', async (c, next) => {
 app.route('/agy', agyRouter);
 app.route('/llama', llamaRouter);
 
-// Helper: Get combined models from agy and llama.cpp
-async function getAllAvailableModels(): Promise<ModelInfo[]> {
-  const serverModels = await fetchLlamaServerModels();
+// Helper: Dynamically discover all live models from Antigravity and llama.cpp
+async function getAllAvailableModels(fresh = false): Promise<ModelInfo[]> {
+  const [agyModels, llamaModels] = await Promise.all([
+    fetchAgyDynamicModels(fresh),
+    fetchLlamaDynamicModels(fresh),
+  ]);
+
   const modelsMap = new Map<string, ModelInfo>();
-
-  for (const m of SUPPORTED_MODELS) {
+  for (const m of agyModels) {
     modelsMap.set(m.id, m);
   }
-
-  for (const m of SUPPORTED_LLAMA_MODELS) {
-    modelsMap.set(m.id, m);
-  }
-
-  for (const m of serverModels) {
+  for (const m of llamaModels) {
     modelsMap.set(m.id, m);
   }
 
@@ -99,16 +101,17 @@ async function getAllAvailableModels(): Promise<ModelInfo[]> {
 // Root: API Documentation & Status
 app.get('/', async (c) => {
   const llamaServerUp = await isLlamaServerReachable();
+  const localGgufs = scanAllLocalGgufFiles();
 
   return c.json({
     service: 'agy-rest',
     description:
-      'Modular REST & OpenAI-compatible API gateway with isolated authentication for Antigravity (Cloud) & llama.cpp (Local GGUF)',
-    version: '1.3.0',
+      'Dynamic multi-engine REST & OpenAI-compatible API gateway for Antigravity (Cloud) & llama.cpp (Local GGUF)',
+    version: '1.4.0',
     modules: {
       antigravity: {
         route_prefix: '/agy',
-        description: 'Dedicated Antigravity endpoints (Gemini, Claude, GPT-OSS)',
+        description: 'Dedicated Antigravity endpoints (Live CLI models discovery)',
         endpoints: [
           'GET /agy/models',
           'GET /agy/v1/models',
@@ -118,7 +121,7 @@ app.get('/', async (c) => {
       },
       llamacpp: {
         route_prefix: '/llama',
-        description: 'Dedicated llama.cpp endpoints (Local GGUF models)',
+        description: 'Dedicated llama.cpp endpoints (Filesystem GGUF & server auto-discovery)',
         endpoints: [
           'GET /llama/models',
           'GET /llama/v1/models',
@@ -129,28 +132,30 @@ app.get('/', async (c) => {
       },
       unified_gateway: {
         route_prefix: '/',
-        description: 'Unified smart gateway routing to both providers automatically based on model',
+        description: 'Unified smart gateway with dynamic model resolution',
         endpoints: [
           'GET /models',
           'GET /v1/models',
+          'GET /api/models',
           'POST /api/chat',
           'POST /v1/chat/completions',
         ],
       },
     },
     auth_modes: {
-      master_key: 'Grants access to both Antigravity & llama.cpp models',
+      master_key: 'Grants access to all models (Antigravity & llama.cpp)',
       agy_api_key: 'Restricted strictly to Antigravity (/agy and cloud models)',
       llama_api_key: 'Restricted strictly to llama.cpp (/llama and local models)',
     },
-    providers: {
+    engines: {
       antigravity: {
         status: 'available',
-        default_models: SUPPORTED_MODELS.map((m) => m.id),
+        discovery: 'dynamic_cli_detection',
       },
       llamacpp: {
         status: llamaServerUp ? 'server_connected' : 'cli_mode',
-        default_models: SUPPORTED_LLAMA_MODELS.map((m) => m.id),
+        discovery: 'filesystem_gguf_scan',
+        local_files_detected: localGgufs.length,
       },
     },
   });
@@ -169,18 +174,44 @@ app.get('/health', async (c) => {
   });
 });
 
-// Unified Model list (filtered by client authorization scope)
-app.get('/models', async (c) => {
+// Comprehensive Dynamic Model Breakdown (GET /api/models)
+app.get('/api/models', async (c) => {
+  const fresh = c.req.query('fresh') === 'true';
   const scope = c.get('authScope');
-  const allModels = await getAllAvailableModels();
+  const allModels = await getAllAvailableModels(fresh);
   const models = allModels.filter((m) => isScopeAllowedForProvider(scope, m.provider));
-  return c.json({ models });
+
+  const agyCount = models.filter((m) => m.provider === 'agy').length;
+  const llamaCount = models.filter((m) => m.provider === 'llamacpp').length;
+
+  return c.json({
+    total: models.length,
+    timestamp: new Date().toISOString(),
+    auth_scope: scope,
+    breakdown: {
+      antigravity: { count: agyCount, source: 'agy_models_cli_live' },
+      llamacpp: { count: llamaCount, source: 'local_gguf_filesystem_scan' },
+    },
+    models,
+  });
 });
 
-app.get('/v1/models', async (c) => {
+// Unified Model list (filtered dynamically by client authorization scope)
+app.get('/models', async (c) => {
+  const fresh = c.req.query('fresh') === 'true';
   const scope = c.get('authScope');
-  const allModels = await getAllAvailableModels();
+  const allModels = await getAllAvailableModels(fresh);
   const models = allModels.filter((m) => isScopeAllowedForProvider(scope, m.provider));
+  return c.json({ total: models.length, models });
+});
+
+// OpenAI-Compatible Models list (dynamically discovered)
+app.get('/v1/models', async (c) => {
+  const fresh = c.req.query('fresh') === 'true';
+  const scope = c.get('authScope');
+  const allModels = await getAllAvailableModels(fresh);
+  const models = allModels.filter((m) => isScopeAllowedForProvider(scope, m.provider));
+
   return c.json({
     object: 'list',
     data: models.map((m) => ({
@@ -296,7 +327,6 @@ app.post('/v1/chat/completions', async (c) => {
   // Streaming Response
   if (body.stream) {
     return streamSSE(c, async (stream) => {
-      // Send initial role chunk
       await stream.writeSSE({
         data: JSON.stringify(
           formatOpenAIChunk(reqId, model, '', null, 'assistant')

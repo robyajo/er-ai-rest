@@ -15,6 +15,11 @@
   "items": [
     {
       "type": "new",
+      "id": "Jalur pencarian model dinamis waktu-nyata yang secara otomatis mendeteksi model komputasi cloud dan berkas model lokal pada penyimpanan tanpa perlu konfigurasi statis manual.",
+      "en": "Real-time dynamic model discovery route automatically detecting active cloud AI models and local storage model files without static configuration."
+    },
+    {
+      "type": "new",
       "id": "Penyediaan saluran integrasi standar yang kompatibel dengan berbagai aplikasi klien dan platform obrolan cerdas.",
       "en": "Standard integration channel compatible with various client applications and intelligent chat platforms."
     },
