@@ -400,13 +400,36 @@ export async function executeLlamaCppStream(
   return executeLlamaCliStream(req, onDelta, onComplete, onError);
 }
 
+async function resolveLlamaServerModel(requested?: string): Promise<string> {
+  const models = await fetchLlamaServerModels();
+  if (models.length === 0) return requested || 'default';
+
+  if (requested) {
+    const exact = models.find((m) => m.id === requested);
+    if (exact) return exact.id;
+
+    const lower = requested.toLowerCase();
+    const caseMatch = models.find((m) => m.id.toLowerCase() === lower);
+    if (caseMatch) return caseMatch.id;
+
+    const partial = models.find(
+      (m) =>
+        m.id.toLowerCase().includes(lower) || lower.includes(m.id.toLowerCase())
+    );
+    if (partial) return partial.id;
+  }
+
+  return models[0].id;
+}
+
 async function executeLlamaServerHttp(req: ChatRequest): Promise<ChatResponse> {
   const baseUrl = getLlamaServerUrl();
   const startTime = Date.now();
 
   try {
+    const targetModel = await resolveLlamaServerModel(req.model);
     const payload = {
-      model: req.model || 'default',
+      model: targetModel,
       messages: [{ role: 'user', content: req.prompt }],
       stream: false,
       temperature: req.temperature ?? 0.7,
@@ -430,7 +453,8 @@ async function executeLlamaServerHttp(req: ChatRequest): Promise<ChatResponse> {
     }
 
     const data = (await res.json()) as any;
-    const content = data.choices?.[0]?.message?.content ?? '';
+    const msg = data.choices?.[0]?.message;
+    const content = msg?.content || msg?.reasoning_content || '';
     const duration_seconds = (Date.now() - startTime) / 1000;
 
     return {
@@ -465,8 +489,9 @@ async function executeLlamaServerHttpStream(
   const startTime = Date.now();
 
   try {
+    const targetModel = await resolveLlamaServerModel(req.model);
     const payload = {
-      model: req.model || 'default',
+      model: targetModel,
       messages: [{ role: 'user', content: req.prompt }],
       stream: true,
       temperature: req.temperature ?? 0.7,
@@ -510,7 +535,9 @@ async function executeLlamaServerHttpStream(
 
           try {
             const parsed = JSON.parse(jsonStr);
-            const delta = parsed.choices?.[0]?.delta?.content;
+            const delta =
+              parsed.choices?.[0]?.delta?.content ??
+              parsed.choices?.[0]?.delta?.reasoning_content;
             if (delta) {
               fullResponse += delta;
               await onDelta(delta);
