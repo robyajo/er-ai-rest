@@ -26,13 +26,19 @@ pnpm dev
 ---
 
 ### 2. Menggunakan CLI Test Runner Otomatis
-Jalankan perintah pengujian terminal sekali jalan:
-```bash
-# Menjalankan seluruh pengujian endpoint otomatis
-pnpm tsx labs/test-runner.ts
 
-# Atau lewat skrip package.json:
-pnpm run test:endpoints
+Tersedia pengujian fleksibel untuk lingkungan **Lokal** maupun **Produksi (VPS)**:
+
+```bash
+# 🏠 Uji lingkungan lokal (http://localhost:8060)
+pnpm run test:local
+# atau: pnpm run test:endpoints
+
+# 🚀 Uji lingkungan produksi VPS langsung (https://er-ai-api.mooo.com)
+pnpm run test:prod
+
+# 🌐 Uji ke host custom apa pun
+pnpm tsx labs/test-runner.ts --url https://host-anda.com
 ```
 
 **Skenario yang diuji secara otomatis:**

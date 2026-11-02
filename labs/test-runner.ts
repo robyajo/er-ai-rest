@@ -19,10 +19,27 @@ interface TestResult {
   message?: string;
 }
 
-const BASE_URL = process.env.TEST_BASE_URL || process.env.BASE_URL || 'http://localhost:8060';
-const MASTER_KEY = process.env.API_KEY || 'sk-agy-roby-master-key-8060';
-const AGY_KEY = process.env.AGY_API_KEY || 'sk-agy-cloud-only-token-8060';
-const LLAMA_KEY = process.env.LLAMA_API_KEY || 'sk-llama-local-only-token-8060';
+// Parse CLI Flags
+const args = process.argv.slice(2);
+const isProd = args.includes("--prod") || args.includes("--production");
+const isLocal = args.includes("--local");
+const urlFlagIdx = args.findIndex((a) => a === "--url" || a === "-u");
+const customUrl = urlFlagIdx !== -1 ? args[urlFlagIdx + 1] : undefined;
+
+const PROD_URL = "https://er-ai-api.mooo.com";
+const LOCAL_URL = "http://localhost:8060";
+
+const BASE_URL = customUrl
+  ? customUrl
+  : isProd
+  ? PROD_URL
+  : isLocal
+  ? LOCAL_URL
+  : process.env.TEST_BASE_URL || process.env.BASE_URL || LOCAL_URL;
+
+const MASTER_KEY = process.env.API_KEY || "sk-agy-roby-master-key-8060";
+const AGY_KEY = process.env.AGY_API_KEY || "sk-agy-cloud-only-token-8060";
+const LLAMA_KEY = process.env.LLAMA_API_KEY || "sk-llama-local-only-token-8060";
 
 // ANSI color helpers
 const colors = {

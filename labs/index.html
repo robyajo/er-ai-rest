@@ -86,11 +86,11 @@
           <p class="text-xs text-slate-400 mt-0.5">Konfigurasi host target dan token otentikasi untuk pengujian peran.</p>
         </div>
         <div class="flex items-center gap-2">
-          <button onclick="setPreset('local')" class="px-3 py-1 text-xs rounded-md bg-dark-950 border border-slate-700 hover:border-slate-500 text-slate-300 transition">
-            🏠 Localhost (8060)
+          <button id="btnPresetLocal" onclick="setPreset('local')" class="px-3 py-1 text-xs rounded-md bg-dark-950 border border-slate-700 hover:border-brand-500 text-slate-300 transition flex items-center gap-1.5">
+            🏠 <span>Local (8060)</span>
           </button>
-          <button onclick="setPreset('vps')" class="px-3 py-1 text-xs rounded-md bg-dark-950 border border-slate-700 hover:border-slate-500 text-slate-300 transition">
-            🌐 VPS Remote
+          <button id="btnPresetVps" onclick="setPreset('vps')" class="px-3 py-1 text-xs rounded-md bg-dark-950 border border-slate-700 hover:border-brand-500 text-slate-300 transition flex items-center gap-1.5">
+            🚀 <span>Produksi (er-ai-api.mooo.com)</span>
           </button>
         </div>
       </div>
@@ -360,11 +360,23 @@
     }
 
     function setPreset(type) {
+      const input = document.getElementById('cfgBaseUrl');
+      const btnLocal = document.getElementById('btnPresetLocal');
+      const btnVps = document.getElementById('btnPresetVps');
+
       if (type === 'local') {
-        document.getElementById('cfgBaseUrl').value = 'http://localhost:8060';
+        input.value = 'http://localhost:8060';
+        btnLocal.className = 'px-3 py-1 text-xs rounded-md bg-brand-500/10 border border-brand-500/40 text-brand-400 font-medium transition flex items-center gap-1.5';
+        btnVps.className = 'px-3 py-1 text-xs rounded-md bg-dark-950 border border-slate-700 hover:border-slate-500 text-slate-400 transition flex items-center gap-1.5';
       } else if (type === 'vps') {
-        document.getElementById('cfgBaseUrl').value = 'https://er-ai-api.mooo.com';
+        input.value = 'https://er-ai-api.mooo.com';
+        btnVps.className = 'px-3 py-1 text-xs rounded-md bg-brand-500/10 border border-brand-500/40 text-brand-400 font-medium transition flex items-center gap-1.5';
+        btnLocal.className = 'px-3 py-1 text-xs rounded-md bg-dark-950 border border-slate-700 hover:border-slate-500 text-slate-400 transition flex items-center gap-1.5';
       }
+      try {
+        localStorage.setItem('agy_lab_target_type', type);
+        localStorage.setItem('agy_lab_base_url', input.value);
+      } catch {}
       checkHealth();
     }
 
@@ -651,6 +663,13 @@
     }
 
     // Initialize
+    try {
+      const savedType = localStorage.getItem('agy_lab_target_type');
+      const savedUrl = localStorage.getItem('agy_lab_base_url');
+      if (savedUrl) document.getElementById('cfgBaseUrl').value = savedUrl;
+      if (savedType === 'vps') setPreset('vps');
+      else setPreset('local');
+    } catch {}
     onPlaygroundEndpointChange();
     checkHealth();
   </script>
