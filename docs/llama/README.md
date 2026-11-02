@@ -35,7 +35,7 @@ Modul ini secara otomatis memilih mode eksekusi terbaik:
 1. **Mode 1: Server HTTP (`llama serve`)**
    - Jika Anda menjalankan server latar belakang seperti `llama serve -m <model.gguf> --port 8080`, gateway otomatis menghubunginya via HTTP API untuk latensi terendah.
 2. **Mode 2: Eksekusi CLI Mandiri (`llama completion`)**
-   - Jika server HTTP belum aktif, gateway langsung memanggil biner bawan `/Users/robykartis/.local/bin/llama completion` secara mandiri.
+   - Jika server HTTP belum aktif, gateway langsung memanggil biner bawan `/home/roby/.local/bin/llama completion` secara mandiri.
    - Otomatis memindai file `.gguf` di direktori cache Hugging Face (`~/.cache/huggingface/hub/`) dan memuat model tanpa konfigurasi manual yang rumit.
 
 ---

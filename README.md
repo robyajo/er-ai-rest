@@ -82,7 +82,7 @@ AGY_PATH=/home/roby/.local/bin/agy
 
 # llama.cpp Configuration
 LLAMA_CPP_BASE_URL=http://127.0.0.1:8080
-LLAMA_BIN=/Users/robykartis/.local/bin/llama
+LLAMA_BIN=/home/roby/.local/bin/llama
 LLAMA_MODEL_PATH=/path/to/your/model.gguf
 ```
 
