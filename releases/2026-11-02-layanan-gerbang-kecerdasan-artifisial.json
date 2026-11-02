@@ -62,6 +62,11 @@
       "type": "improvement",
       "id": "Sistem otentikasi token akses mandiri untuk melindungi layanan dan menjamin keamanan pertukaran data.",
       "en": "Self-hosted access token authentication ensuring protected service access and secure data exchange."
+    },
+    {
+      "type": "improvement",
+      "id": "Penyempurnaan konfigurasi jalur kerja pemrosesan lokal mandiri agar selaras dengan lingkungan server tempat layanan beroperasi.",
+      "en": "Refinement of the self-hosted local processing configuration path to seamlessly match the server runtime environment."
     }
   ]
 }
