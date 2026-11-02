@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# agy-rest — VPS Production Build & Cache Cleanup Automation Script
+# er-ai-rest — VPS Production Build & Cache Cleanup Automation Script
 # ==============================================================================
 # Usage:
 #   chmod +x finis.sh
 #   ./finis.sh
+#   (atau 'sudo ./finis.sh' untuk auto-migrasi unit systemd service)
 # ==============================================================================
 
 set -euo pipefail
@@ -27,7 +28,7 @@ PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "${PROJECT_DIR}"
 
 echo -e "\n${CYAN}${BOLD}======================================================${RESET}"
-echo -e "${CYAN}${BOLD} 🚀 agy-rest VPS Build & Deployment Routine ${RESET}"
+echo -e "${CYAN}${BOLD} 🚀 er-ai-rest VPS Build & Deployment Routine ${RESET}"
 echo -e "${CYAN}${BOLD}======================================================${RESET}\n"
 
 # 1. Environment & Dependency Check
@@ -104,21 +105,54 @@ fi
 log_success "Kompilasi TypeScript berhasil! Artefak siap di 'dist/'."
 
 # 5. Cek & Muat Ulang Systemd Service (Jika dijalankan di VPS Linux)
-SERVICE_NAME="agy-rest"
+SERVICE_NAME="er-ai-rest"
+LEGACY_SERVICE="agy-rest"
+
 if command -v systemctl >/dev/null 2>&1; then
-  if systemctl list-unit-files "${SERVICE_NAME}.service" >/dev/null 2>&1 || [ -f "/etc/systemd/system/${SERVICE_NAME}.service" ]; then
-    log_info "Mendeteksi systemd service '${SERVICE_NAME}', memuat ulang service..."
-    if [ "$EUID" -eq 0 ]; then
-      systemctl daemon-reload
-      systemctl restart "${SERVICE_NAME}"
-    else
-      log_warn "Menjalankan restart service via sudo..."
-      sudo systemctl daemon-reload || true
-      sudo systemctl restart "${SERVICE_NAME}" || true
+  CAN_SUDO=false
+  SUDO_CMD=""
+  if [ "$EUID" -eq 0 ]; then
+    CAN_SUDO=true
+  elif sudo -n true 2>/dev/null; then
+    CAN_SUDO=true
+    SUDO_CMD="sudo"
+  fi
+
+  if [ "$CAN_SUDO" = true ]; then
+    # Auto-migrasi ke er-ai-rest.service jika file unit belum ada di /etc/systemd/system/
+    if [ ! -f "/etc/systemd/system/${SERVICE_NAME}.service" ]; then
+      if [ -f "${PROJECT_DIR}/${SERVICE_NAME}.service" ]; then
+        log_info "Memasang unit '${SERVICE_NAME}.service' ke /etc/systemd/system/..."
+        $SUDO_CMD cp "${PROJECT_DIR}/${SERVICE_NAME}.service" "/etc/systemd/system/${SERVICE_NAME}.service"
+        $SUDO_CMD chmod 644 "/etc/systemd/system/${SERVICE_NAME}.service"
+      fi
     fi
-    log_success "Service '${SERVICE_NAME}' berhasil di-restart!"
+
+    # Nonaktifkan service agy-rest lama bila er-ai-rest aktif atau sedang dimigrasikan
+    if [ -f "/etc/systemd/system/${SERVICE_NAME}.service" ]; then
+      if systemctl is-active "${LEGACY_SERVICE}" >/dev/null 2>&1 || [ -f "/etc/systemd/system/${LEGACY_SERVICE}.service" ]; then
+        log_info "Mematikan dan menonaktifkan service lama '${LEGACY_SERVICE}'..."
+        $SUDO_CMD systemctl stop "${LEGACY_SERVICE}" 2>/dev/null || true
+        $SUDO_CMD systemctl disable "${LEGACY_SERVICE}" 2>/dev/null || true
+      fi
+    fi
+
+    if systemctl list-unit-files "${SERVICE_NAME}.service" >/dev/null 2>&1 || [ -f "/etc/systemd/system/${SERVICE_NAME}.service" ]; then
+      log_info "Mendeteksi systemd service '${SERVICE_NAME}', memuat ulang service..."
+      $SUDO_CMD systemctl daemon-reload
+      $SUDO_CMD systemctl enable "${SERVICE_NAME}"
+      $SUDO_CMD systemctl restart "${SERVICE_NAME}"
+      log_success "Service '${SERVICE_NAME}' berhasil di-restart!"
+    fi
   else
-    log_info "Systemd service '${SERVICE_NAME}' belum terkonfigurasi. Lewati restart otomatis."
+    # Jika dijalankan tanpa passwordless sudo (misal via user roby)
+    if [ -f "/etc/systemd/system/${SERVICE_NAME}.service" ]; then
+      log_info "Mendeteksi unit service '${SERVICE_NAME}' terpasang. Memuat ulang proses..."
+    else
+      log_info "Service '${SERVICE_NAME}.service' siap dipasang. (Jalankan 'sudo ./finis.sh' untuk auto-migrasi unit)."
+    fi
+    log_info "Memuat ulang proses node runtime aktif untuk menerapkan kode baru..."
+    pkill -u "$(id -un)" -f "dist/index.js" 2>/dev/null || true
   fi
 else
   log_info "Bukan lingkungan systemd Linux (mis. macOS / Docker). Lewati langkah restart service."
@@ -134,7 +168,7 @@ if [ -f ".env" ]; then
 fi
 
 log_info "Menguji status endpoint kesehatan (Health Check pada port ${PORT})..."
-sleep 1
+sleep 6
 if command -v curl >/dev/null 2>&1; then
   HEALTH_RES=$(curl -s "http://127.0.0.1:${PORT}/health" 2>/dev/null || true)
   if echo "${HEALTH_RES}" | grep -q '"status":"ok"'; then

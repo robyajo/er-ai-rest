@@ -1,6 +1,29 @@
-# 📝 Catatan Perubahan (Changelog) — `agy-rest`
+# 📝 Catatan Perubahan (Changelog) — `er-ai-rest`
 
-Semua perubahan penting pada proyek **`agy-rest`** didokumentasikan dalam berkas ini. Format mengacu pada [Keep a Changelog](https://keepachangelog.com/id/1.0.0/) dan mematuhi [Semantic Versioning](https://semver.org/lang/id/).
+Semua perubahan penting pada proyek **`er-ai-rest`** didokumentasikan dalam berkas ini. Format mengacu pada [Keep a Changelog](https://keepachangelog.com/id/1.0.0/) dan mematuhi [Semantic Versioning](https://semver.org/lang/id/).
+
+---
+
+## [1.5.0] — 2026-11-02
+
+### 🚀 Ditambahkan (Added)
+- **Endpoint Completions OpenAI (`/v1/completions` & `/llama/v1/completions`)**:
+  - Penambahan rute pelengkap teks standar OpenAI untuk mendukung aplikasi coding, pelengkapan baris kode, dan prompt completion tanpa dependensi chat format.
+  - Penambahan rute native llama.cpp (`/llama/completion`, `/llama/props`, `/llama/slots`) untuk monitoring status server dan penggunaan langsung.
+- **Unit Systemd Resmi `er-ai-rest.service`**:
+  - Berkas unit systemd terstandarisasi untuk menggantikan unit `agy-rest.service`.
+
+### ⚡ Optimalisasi Performa & Perbaikan Bug (Performance & Fixes)
+- **Direct Native Proxying Llama.cpp**:
+  - Respons sub-detik (~300ms) melalui transmisi langsung (*direct stream pipeline*) tanpa overhead de-serialisasi JSON per chunk.
+  - Resolusi model instan dari memori (*in-memory alias resolver*) tanpa panggilan HTTP preflight ganda yang sebelumnya menambah jeda 1-3 detik per request.
+  - Eliminasi fallback CLI otomatis yang sebelumnya menyebabkan pemuatan ulang file bobot model 800MB ke memori dan membebani 100% inti CPU.
+  - Preservasi format percakapan utuh (`messages`, `roles`, instruksi sistem) dan mode penalaran (`reasoning_content`), sehingga kualitas respons model tetap cerdas dan presisi.
+
+### 🔄 Diubah & Ditingkatkan (Changed)
+- **Migrasi Layanan `finis.sh`**:
+  - Skrip deployment `finis.sh` kini secara default mengelola service unit `er-ai-rest` dengan mekanisme auto-migrasi dan penonaktifan unit lama `agy-rest`.
+  - Pembaruan pengujian otomatis di `labs/test-runner.ts` mencakup pengujian endpoint completions lokal dan produksi (19/19 skenario PASS).
 
 ---
 

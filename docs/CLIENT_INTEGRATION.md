@@ -1,6 +1,6 @@
 # 📱 Panduan Integrasi Klien Menggunakan API Key
 
-Server **`agy-rest`** menyediakan endpoint yang 100% kompatibel dengan **OpenAI Chat Completions API**. Ini memungkinkan Anda mengintegrasikannya ke berbagai aplikasi AI populer atau kode kustom Anda cukup dengan memasukkan **Base URL** dan **API Key**, serta memilih engine antara **Antigravity CLI** atau model lokal **llama.cpp**.
+Server **`er-ai-rest`** menyediakan endpoint yang 100% kompatibel dengan **OpenAI Chat Completions API** dan **Completions API**. Ini memungkinkan Anda mengintegrasikannya ke berbagai aplikasi AI populer atau kode kustom Anda cukup dengan memasukkan **Base URL** dan **API Key**, serta memilih engine antara **Antigravity CLI** atau model lokal **llama.cpp**.
 
 ---
 

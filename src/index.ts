@@ -66,7 +66,7 @@ serve(
   },
   (info) => {
     console.log(
-      `🚀 agy-rest server running on http://${info.address}:${info.port}`
+      `🚀 er-ai-rest server running on http://${info.address}:${info.port}`
     );
   }
 );

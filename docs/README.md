@@ -1,6 +1,6 @@
-# 📑 Dokumentasi Resmi `agy-rest`
+# 📑 Dokumentasi Resmi `er-ai-rest`
 
-Selamat datang di pusat dokumentasi **`agy-rest`** — Gateway REST & OpenAI-Compatible multi-engine untuk **Google Antigravity CLI (`agy`)** dan **llama.cpp (Local GGUF models)**.
+Selamat datang di pusat dokumentasi **`er-ai-rest`** — Gateway REST & OpenAI-Compatible multi-engine untuk **Google Antigravity CLI (`agy`)** dan **llama.cpp (Local GGUF models)**.
 
 ---
 

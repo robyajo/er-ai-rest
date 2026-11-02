@@ -67,6 +67,21 @@
       "type": "improvement",
       "id": "Penyempurnaan konfigurasi jalur kerja pemrosesan lokal mandiri agar selaras dengan lingkungan server tempat layanan beroperasi.",
       "en": "Refinement of the self-hosted local processing configuration path to seamlessly match the server runtime environment."
+    },
+    {
+      "type": "new",
+      "id": "Penyediaan antarmuka pelengkap teks otomatis untuk mendukung aplikasi penulisan dan penyelesaian kode dengan respon sub-detik yang sangat cepat.",
+      "en": "Addition of automatic text completion interface to support writing and code completion applications with ultra-fast sub-second responses."
+    },
+    {
+      "type": "improvement",
+      "id": "Peningkatan efisiensi transmisi pemrosesan lokal mandiri untuk menjaga kelengkapan penalaran dan konsistensi instruksi tanpa jeda waktu.",
+      "en": "Enhanced transmission efficiency for self-hosted local processing to preserve complete reasoning depth and instruction consistency without delay."
+    },
+    {
+      "type": "improvement",
+      "id": "Pembaruan otomasi siklus layanan server ke penamaan resmi terpadu untuk memastikan operasional berkesinambungan tanpa henti.",
+      "en": "Updated server service lifecycle automation to the official unified name ensuring continuous seamless operation."
     }
   ]
 }

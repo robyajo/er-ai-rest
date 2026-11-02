@@ -59,19 +59,19 @@ Jika Anda menjalankan server sebagai service sistem di server remote:
 
 1. Edit file unit systemd:
    ```bash
-   sudo nano /etc/systemd/system/agy-rest.service
+   sudo nano /etc/systemd/system/er-ai-rest.service
    ```
 
 2. Tambahkan variabel lingkungan API key di blok `[Service]`:
    ```ini
    [Unit]
-   Description=Antigravity REST Gateway (agy-rest)
+   Description=Er AI REST Gateway (er-ai-rest)
    After=network.target
 
    [Service]
    Type=simple
    User=roby
-   WorkingDirectory=/srv/www/agy-rest
+   WorkingDirectory=/srv/www/er-ai-rest
    Environment=PORT=8060
    Environment=HOST=0.0.0.0
    Environment=API_KEY=sk-agy-roby-master-key-8060
@@ -89,7 +89,7 @@ Jika Anda menjalankan server sebagai service sistem di server remote:
 3. Muat ulang dan restart service:
    ```bash
    sudo systemctl daemon-reload
-   sudo systemctl restart agy-rest
+   sudo systemctl restart er-ai-rest
    ```
 
 ---

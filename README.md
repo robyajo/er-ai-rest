@@ -1,4 +1,4 @@
-# agy-rest 🚀
+# er-ai-rest 🚀
 
 Modular REST and OpenAI-compatible API gateway for **Google Antigravity CLI (`agy`)** and **llama.cpp (Local GGUF models)**, built using **[Hono](https://hono.dev/)** and TypeScript.
 
@@ -52,7 +52,7 @@ Skrip ini secara otomatis:
 1. Membersihkan cache build lama (`dist/`, `tsconfig.tsbuildinfo`, `.cache`).
 2. Menginstal dan memvalidasi seluruh dependensi via `pnpm`.
 3. Membangun TypeScript menjadi JavaScript produksi yang dioptimalkan.
-4. Me-restart systemd service `agy-rest` (jika berjalan di Linux VPS).
+4. Me-restart systemd service `er-ai-rest` (jika berjalan di Linux VPS).
 5. Menjalankan pengujian health check otomatis.
 
 ---

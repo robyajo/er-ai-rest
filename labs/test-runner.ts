@@ -147,7 +147,7 @@ async function runTestSuite() {
   // 1. PUBLIC ENDPOINTS
   console.log(`${colors.bold}${colors.yellow}1. Public Endpoints (No Auth Needed)${colors.reset}`);
   const rRoot = await executeRequest('GET', '/');
-  record('Public', 'Server Banner & Directory', 'GET', '/', 200, rRoot, (r) => r.data?.service === 'agy-rest');
+  record('Public', 'Server Banner & Directory', 'GET', '/', 200, rRoot, (r) => r.data?.service === 'er-ai-rest');
 
   const rHealth = await executeRequest('GET', '/health');
   record('Public', 'System Health Check', 'GET', '/health', 200, rHealth, (r) => r.data?.status === 'ok');
@@ -189,6 +189,43 @@ async function runTestSuite() {
 
   const rLlamaV1Models = await executeRequest('GET', '/llama/v1/models', MASTER_KEY);
   record('Llama', 'Llama OpenAI Models (/llama/v1/models)', 'GET', '/llama/v1/models', 200, rLlamaV1Models);
+
+  const rLlamaChat = await executeRequest(
+    'POST',
+    '/llama/v1/chat/completions',
+    MASTER_KEY,
+    {
+      model: 'qwen3.5-0.8b',
+      messages: [{ role: 'user', content: '1+1=' }],
+      max_tokens: 5,
+      chat_template_kwargs: { enable_thinking: false },
+    }
+  );
+  record('Llama', 'Llama Chat Completions (/llama/v1/chat/completions)', 'POST', '/llama/v1/chat/completions', 200, rLlamaChat, (r) => r.data?.choices !== undefined);
+
+  const rLlamaCmpl = await executeRequest(
+    'POST',
+    '/llama/v1/completions',
+    MASTER_KEY,
+    {
+      model: 'qwen3.5-0.8b',
+      prompt: '1 + 1 =',
+      max_tokens: 5,
+    }
+  );
+  record('Llama', 'Llama Legacy Completions (/llama/v1/completions)', 'POST', '/llama/v1/completions', 200, rLlamaCmpl, (r) => r.data?.choices !== undefined);
+
+  const rUnifiedCmpl = await executeRequest(
+    'POST',
+    '/v1/completions',
+    MASTER_KEY,
+    {
+      model: 'qwen3.5-0.8b',
+      prompt: 'Test',
+      max_tokens: 5,
+    }
+  );
+  record('Unified', 'Unified Completions (/v1/completions)', 'POST', '/v1/completions', 200, rUnifiedCmpl, (r) => r.data?.choices !== undefined);
 
   // 6. ROLE ISOLATION & ACCESS CONTROL
   console.log(`\n${colors.bold}${colors.yellow}6. Role-Based Access Isolation (AGY vs LLAMA Keys)${colors.reset}`);

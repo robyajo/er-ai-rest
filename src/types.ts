@@ -14,6 +14,9 @@ export interface ChatRequest {
   cwd?: string;
   temperature?: number;
   max_tokens?: number;
+  top_p?: number;
+  stop?: string | string[];
+  [key: string]: any;
 }
 
 export interface ChatResponse {
@@ -63,6 +66,8 @@ export interface AgyStreamEvent {
 export interface OpenAIMessage {
   role: "system" | "user" | "assistant";
   content: string;
+  reasoning_content?: string;
+  name?: string;
 }
 
 export interface OpenAIChatRequest {
@@ -72,7 +77,26 @@ export interface OpenAIChatRequest {
   stream?: boolean;
   temperature?: number;
   max_tokens?: number;
+  top_p?: number;
+  stop?: string | string[];
+  presence_penalty?: number;
+  frequency_penalty?: number;
   provider?: ProviderType;
+  [key: string]: any;
+}
+
+export interface OpenAICompletionRequest {
+  model?: string;
+  prompt: string | string[];
+  stream?: boolean;
+  temperature?: number;
+  max_tokens?: number;
+  top_p?: number;
+  stop?: string | string[];
+  presence_penalty?: number;
+  frequency_penalty?: number;
+  provider?: ProviderType;
+  [key: string]: any;
 }
 
 export interface ModelInfo {

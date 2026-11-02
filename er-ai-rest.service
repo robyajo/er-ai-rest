@@ -1,0 +1,17 @@
+[Unit]
+Description=Er AI REST Gateway (er-ai-rest)
+After=network.target
+
+[Service]
+Type=simple
+User=roby
+WorkingDirectory=/srv/www/er-ai-rest
+Environment=PORT=8060
+Environment=HOST=0.0.0.0
+Environment=PATH=/home/roby/.nvm/versions/node/v26.13.0/bin:/home/roby/.local/bin:/usr/local/bin:/usr/bin:/bin
+ExecStart=/home/roby/.nvm/versions/node/v26.13.0/bin/node /srv/www/er-ai-rest/dist/index.js
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

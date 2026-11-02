@@ -1,3 +1,4 @@
+import type { Context } from 'hono';
 import { spawn } from 'node:child_process';
 import { existsSync, readdirSync, statSync } from 'node:fs';
 import { homedir } from 'node:os';
@@ -6,16 +7,20 @@ import type {
   ChatRequest,
   ChatResponse,
   ModelInfo,
-  OpenAIChatRequest,
-  OpenAIMessage,
 } from './types.js';
 
 export const SUPPORTED_LLAMA_MODELS: ModelInfo[] = [
   {
-    id: 'qwen3.5-0.8b',
-    name: 'Qwen 3.5 0.8B (Local GGUF)',
+    id: 'Qwen3.5-0.8B-Q8_0',
+    name: 'Qwen 3.5 0.8B Q8_0 (Active Llama Server)',
     provider: 'llamacpp',
-    description: 'Ultra-fast lightweight local GGUF model',
+    description: 'Active high-speed reasoning model on llama.cpp server',
+  },
+  {
+    id: 'qwen3.5-0.8b',
+    name: 'Qwen 3.5 0.8B (Alias)',
+    provider: 'llamacpp',
+    description: 'Lightweight local GGUF model alias',
   },
   {
     id: 'llama-3.2-1b',
@@ -73,7 +78,8 @@ export function isLlamaCppTarget(model?: string, provider?: string): boolean {
     m.startsWith('phi') ||
     m.startsWith('gemma') ||
     m.endsWith('.gguf') ||
-    m === 'local-gguf'
+    m === 'local-gguf' ||
+    m === 'default'
   );
 }
 
@@ -82,7 +88,7 @@ export function getLlamaServerUrl(): string {
     process.env.LLAMA_CPP_BASE_URL ||
     process.env.LLAMA_SERVER_URL ||
     process.env.LLAMA_BASE_URL ||
-    'http://127.0.0.1:8080'
+    'http://127.0.0.1:9931'
   ).replace(/\/+$/, '');
 }
 
@@ -262,11 +268,17 @@ export function scanAllLocalGgufFiles(): Array<{
   return results;
 }
 
+// In-memory model caching to prevent latency on every request
+let cachedServerModels: ModelInfo[] = [];
+let cachedActiveModelId = 'Qwen3.5-0.8B-Q8_0';
+let lastServerModelsFetchTime = 0;
+const SERVER_MODELS_CACHE_TTL_MS = 60_000; // 60 seconds
+
 export async function isLlamaServerReachable(): Promise<boolean> {
   const baseUrl = getLlamaServerUrl();
   try {
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 1200);
+    const timeout = setTimeout(() => controller.abort(), 1500);
     const res = await fetch(`${baseUrl}/v1/models`, {
       method: 'GET',
       signal: controller.signal,
@@ -278,38 +290,106 @@ export async function isLlamaServerReachable(): Promise<boolean> {
   }
 }
 
-export async function fetchLlamaServerModels(): Promise<ModelInfo[]> {
+export async function fetchLlamaServerModels(forceFresh = false): Promise<ModelInfo[]> {
+  const now = Date.now();
+  if (
+    !forceFresh &&
+    cachedServerModels.length > 0 &&
+    now - lastServerModelsFetchTime < SERVER_MODELS_CACHE_TTL_MS
+  ) {
+    return cachedServerModels;
+  }
+
   const baseUrl = getLlamaServerUrl();
   try {
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 1500);
+    const timeout = setTimeout(() => controller.abort(), 2500);
     const res = await fetch(`${baseUrl}/v1/models`, {
       method: 'GET',
       signal: controller.signal,
     });
     clearTimeout(timeout);
 
-    if (!res.ok) return [];
+    if (!res.ok) return cachedServerModels;
     const data = (await res.json()) as any;
     const modelsList: any[] = data.data || data.models || [];
-    return modelsList.map((m: any) => {
+
+    const mapped = modelsList.map((m: any) => {
       const id = m.id || m.name || m.model;
       const cleanName = id.split('/').pop()?.replace(/\.gguf$/i, '') || id;
       return {
         id,
         name: `${cleanName} (llama.cpp server)`,
-        provider: 'llamacpp',
+        provider: 'llamacpp' as const,
         description: `Model loaded on active llama.cpp server at ${baseUrl}`,
       };
     });
+
+    if (mapped.length > 0) {
+      cachedServerModels = mapped;
+      // Set the first loaded model as active default
+      const loadedModel = modelsList.find((m: any) => m.status?.value === 'loaded');
+      if (loadedModel?.id) {
+        cachedActiveModelId = loadedModel.id;
+      } else if (mapped[0]?.id) {
+        cachedActiveModelId = mapped[0].id;
+      }
+      lastServerModelsFetchTime = now;
+    }
+
+    return mapped;
   } catch {
-    return [];
+    return cachedServerModels;
   }
+}
+
+/**
+ * Resolves requested model alias (e.g. 'qwen3.5-0.8b', 'qwen', 'local-gguf', 'default')
+ * to the exact model loaded in llama.cpp router without blocking.
+ */
+export async function resolveLlamaServerModel(requested?: string): Promise<string> {
+  if (!requested || requested === 'default' || requested === 'local-gguf' || requested === 'auto') {
+    return cachedActiveModelId || 'Qwen3.5-0.8B-Q8_0';
+  }
+
+  const reqLower = requested.toLowerCase();
+
+  // If already matches cached active model
+  if (cachedActiveModelId.toLowerCase() === reqLower || cachedActiveModelId === requested) {
+    return cachedActiveModelId;
+  }
+
+  // Fast mapping for common aliases targeting Qwen
+  if (reqLower.includes('qwen') || reqLower.includes('0.8b') || reqLower === 'llama') {
+    return cachedActiveModelId || 'Qwen3.5-0.8B-Q8_0';
+  }
+
+  // Check known server models cache
+  if (cachedServerModels.length > 0) {
+    const exact = cachedServerModels.find((m) => m.id === requested);
+    if (exact) return exact.id;
+
+    const caseMatch = cachedServerModels.find((m) => m.id.toLowerCase() === reqLower);
+    if (caseMatch) return caseMatch.id;
+
+    const partial = cachedServerModels.find(
+      (m) =>
+        m.id.toLowerCase().includes(reqLower) || reqLower.includes(m.id.toLowerCase())
+    );
+    if (partial) return partial.id;
+  }
+
+  // Asynchronous background refresh if cache is cold
+  if (Date.now() - lastServerModelsFetchTime > SERVER_MODELS_CACHE_TTL_MS) {
+    fetchLlamaServerModels(true).catch(() => {});
+  }
+
+  return cachedActiveModelId || requested;
 }
 
 let cachedLlamaModels: ModelInfo[] | null = null;
 let lastLlamaFetchTime = 0;
-const LLAMA_CACHE_TTL_MS = 30_000; // 30s TTL cache
+const LLAMA_CACHE_TTL_MS = 30_000;
 
 /**
  * Dynamically queries all available llama.cpp models from:
@@ -332,7 +412,7 @@ export async function fetchLlamaDynamicModels(
   const modelsMap = new Map<string, ModelInfo>();
 
   // 1. Check active llama-server models
-  const serverModels = await fetchLlamaServerModels();
+  const serverModels = await fetchLlamaServerModels(forceFresh);
   for (const sm of serverModels) {
     modelsMap.set(sm.id, sm);
   }
@@ -350,7 +430,7 @@ export async function fetchLlamaDynamicModels(
       description: `Discovered on disk: ${f.path} (${f.sizeMb})`,
     });
 
-    // Provide friendly alias without quant suffix if present (e.g. Qwen3.5-0.8B)
+    // Provide friendly alias without quant suffix
     const baseSlug = cleanId.split(/[-_](q[0-9]|f16|f32)/i)[0];
     if (baseSlug && baseSlug !== cleanId && !modelsMap.has(baseSlug)) {
       modelsMap.set(baseSlug, {
@@ -375,14 +455,187 @@ export async function fetchLlamaDynamicModels(
   return results;
 }
 
-export async function executeLlamaCpp(req: ChatRequest): Promise<ChatResponse> {
-  const serverReachable = await isLlamaServerReachable();
+/**
+ * High-performance direct proxy for OpenAI-compatible chat completions.
+ * Transparently pipes SSE streams or returns JSON with zero latency and full fidelity.
+ */
+export async function forwardLlamaChatCompletions(
+  c: Context,
+  body: any
+): Promise<Response> {
+  const baseUrl = getLlamaServerUrl();
 
-  if (serverReachable) {
-    return executeLlamaServerHttp(req);
+  // Resolve model to active server model
+  body.model = await resolveLlamaServerModel(body.model);
+
+  try {
+    const res = await fetch(`${baseUrl}/v1/chat/completions`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(body),
+    });
+
+    if (body.stream && res.ok && res.body) {
+      return new Response(res.body, {
+        status: res.status,
+        headers: {
+          'Content-Type': 'text/event-stream; charset=utf-8',
+          'Cache-Control': 'no-cache, no-transform',
+          'Connection': 'keep-alive',
+          'X-Accel-Buffering': 'no',
+          'Access-Control-Allow-Origin': '*',
+        },
+      });
+    }
+
+    const data = await res.json();
+    return c.json(data, res.status as any);
+  } catch (err: any) {
+    return c.json(
+      {
+        error: {
+          message: `Failed to connect to llama.cpp server at ${baseUrl}: ${err.message}`,
+          type: 'llamacpp_connection_error',
+          code: 'llama_server_unreachable',
+        },
+      },
+      502
+    );
+  }
+}
+
+/**
+ * High-performance direct proxy for legacy OpenAI-compatible text completions (/v1/completions).
+ */
+export async function forwardLlamaCompletions(
+  c: Context,
+  body: any
+): Promise<Response> {
+  const baseUrl = getLlamaServerUrl();
+
+  body.model = await resolveLlamaServerModel(body.model);
+
+  try {
+    const res = await fetch(`${baseUrl}/v1/completions`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(body),
+    });
+
+    if (body.stream && res.ok && res.body) {
+      return new Response(res.body, {
+        status: res.status,
+        headers: {
+          'Content-Type': 'text/event-stream; charset=utf-8',
+          'Cache-Control': 'no-cache, no-transform',
+          'Connection': 'keep-alive',
+          'X-Accel-Buffering': 'no',
+          'Access-Control-Allow-Origin': '*',
+        },
+      });
+    }
+
+    const data = await res.json();
+    return c.json(data, res.status as any);
+  } catch (err: any) {
+    return c.json(
+      {
+        error: {
+          message: `Failed to connect to llama.cpp server at ${baseUrl}: ${err.message}`,
+          type: 'llamacpp_connection_error',
+          code: 'llama_server_unreachable',
+        },
+      },
+      502
+    );
+  }
+}
+
+/**
+ * Direct proxy for native llama.cpp completion (/completion).
+ */
+export async function forwardLlamaNativeCompletion(
+  c: Context,
+  body: any
+): Promise<Response> {
+  const baseUrl = getLlamaServerUrl();
+
+  body.model = await resolveLlamaServerModel(body.model);
+
+  try {
+    const res = await fetch(`${baseUrl}/completion`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(body),
+    });
+
+    if (body.stream && res.ok && res.body) {
+      return new Response(res.body, {
+        status: res.status,
+        headers: {
+          'Content-Type': 'text/event-stream; charset=utf-8',
+          'Cache-Control': 'no-cache, no-transform',
+          'Connection': 'keep-alive',
+          'X-Accel-Buffering': 'no',
+          'Access-Control-Allow-Origin': '*',
+        },
+      });
+    }
+
+    const data = await res.json();
+    return c.json(data, res.status as any);
+  } catch (err: any) {
+    return c.json(
+      {
+        error: {
+          message: `Failed to connect to llama.cpp server at ${baseUrl}: ${err.message}`,
+          type: 'llamacpp_connection_error',
+        },
+      },
+      502
+    );
+  }
+}
+
+/**
+ * Proxy for /props and /slots monitoring
+ */
+export async function forwardLlamaGet(c: Context, path: string): Promise<Response> {
+  const baseUrl = getLlamaServerUrl();
+  let query = c.req.url.includes('?') ? c.req.url.slice(c.req.url.indexOf('?')) : '';
+  if (path === '/slots' && !query.includes('model=')) {
+    query = query ? `${query}&model=${encodeURIComponent(cachedActiveModelId)}` : `?model=${encodeURIComponent(cachedActiveModelId)}`;
   }
 
-  return executeLlamaCli(req);
+  try {
+    const res = await fetch(`${baseUrl}${path}${query}`);
+    const data = await res.json();
+    return c.json(data, res.status as any);
+  } catch (err: any) {
+    return c.json(
+      { error: `Failed to query llama.cpp ${path}: ${err.message}` },
+      502
+    );
+  }
+}
+
+/**
+ * Execute Llama for unified internal ChatRequest (e.g. /api/chat)
+ */
+export async function executeLlamaCpp(req: ChatRequest): Promise<ChatResponse> {
+  // Try HTTP server directly without pre-flight latency
+  try {
+    return await executeLlamaServerHttp(req);
+  } catch (err: any) {
+    // Only fall back to CLI if HTTP connection failed
+    return executeLlamaCli(req);
+  }
 }
 
 export async function executeLlamaCppStream(
@@ -391,97 +644,72 @@ export async function executeLlamaCppStream(
   onComplete: (result: ChatResponse) => void | Promise<void>,
   onError: (error: string) => void | Promise<void>
 ): Promise<void> {
-  const serverReachable = await isLlamaServerReachable();
-
-  if (serverReachable) {
-    return executeLlamaServerHttpStream(req, onDelta, onComplete, onError);
+  try {
+    await executeLlamaServerHttpStream(req, onDelta, onComplete, onError);
+  } catch {
+    await executeLlamaCliStream(req, onDelta, onComplete, onError);
   }
-
-  return executeLlamaCliStream(req, onDelta, onComplete, onError);
-}
-
-async function resolveLlamaServerModel(requested?: string): Promise<string> {
-  const models = await fetchLlamaServerModels();
-  if (models.length === 0) return requested || 'default';
-
-  if (requested) {
-    const exact = models.find((m) => m.id === requested);
-    if (exact) return exact.id;
-
-    const lower = requested.toLowerCase();
-    const caseMatch = models.find((m) => m.id.toLowerCase() === lower);
-    if (caseMatch) return caseMatch.id;
-
-    const partial = models.find(
-      (m) =>
-        m.id.toLowerCase().includes(lower) || lower.includes(m.id.toLowerCase())
-    );
-    if (partial) return partial.id;
-  }
-
-  return models[0].id;
 }
 
 async function executeLlamaServerHttp(req: ChatRequest): Promise<ChatResponse> {
   const baseUrl = getLlamaServerUrl();
   const startTime = Date.now();
 
-  try {
-    const targetModel = await resolveLlamaServerModel(req.model);
-    const payload: Record<string, any> = {
-      model: targetModel,
-      messages: req.messages && req.messages.length > 0
-        ? req.messages
-        : [{ role: 'user', content: req.prompt }],
-      stream: false,
-      temperature: req.temperature ?? 0.7,
-      max_tokens: req.max_tokens ?? 2048,
-    };
-    if (req.chat_template_kwargs) {
-      payload.chat_template_kwargs = req.chat_template_kwargs;
-    }
+  const targetModel = await resolveLlamaServerModel(req.model);
+  const payload: Record<string, any> = {
+    model: targetModel,
+    messages: req.messages && req.messages.length > 0
+      ? req.messages
+      : [{ role: 'user', content: req.prompt }],
+    stream: false,
+    temperature: req.temperature ?? 0.7,
+    max_tokens: req.max_tokens ?? 2048,
+  };
 
-    const res = await fetch(`${baseUrl}/v1/chat/completions`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    });
+  if (req.chat_template_kwargs) {
+    payload.chat_template_kwargs = req.chat_template_kwargs;
+  }
+  if (req.top_p !== undefined) {
+    payload.top_p = req.top_p;
+  }
+  if (req.stop !== undefined) {
+    payload.stop = req.stop;
+  }
 
-    if (!res.ok) {
-      const errText = await res.text();
-      return {
-        success: false,
-        response: '',
-        error: `llama.cpp server error (${res.status}): ${errText}`,
-        provider: 'llamacpp',
-      };
-    }
+  const res = await fetch(`${baseUrl}/v1/chat/completions`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
 
-    const data = (await res.json()) as any;
-    const msg = data.choices?.[0]?.message;
-    const content = msg?.content || msg?.reasoning_content || '';
-    const duration_seconds = (Date.now() - startTime) / 1000;
-
-    return {
-      success: true,
-      response: content,
-      duration_seconds,
-      num_turns: 1,
-      usage: {
-        input_tokens: data.usage?.prompt_tokens ?? 0,
-        output_tokens: data.usage?.completion_tokens ?? 0,
-        total_tokens: data.usage?.total_tokens ?? 0,
-      },
-      provider: 'llamacpp',
-    };
-  } catch (err: any) {
+  if (!res.ok) {
+    const errText = await res.text();
     return {
       success: false,
       response: '',
-      error: `Failed to communicate with llama.cpp server at ${baseUrl}: ${err.message}`,
+      error: `llama.cpp server error (${res.status}): ${errText}`,
       provider: 'llamacpp',
     };
   }
+
+  const data = (await res.json()) as any;
+  const msg = data.choices?.[0]?.message;
+  // If content is empty (e.g. truncated thinking), fall back to reasoning_content
+  const content = msg?.content || msg?.reasoning_content || '';
+  const duration_seconds = (Date.now() - startTime) / 1000;
+
+  return {
+    success: true,
+    response: content,
+    duration_seconds,
+    num_turns: 1,
+    usage: {
+      input_tokens: data.usage?.prompt_tokens ?? 0,
+      output_tokens: data.usage?.completion_tokens ?? 0,
+      total_tokens: data.usage?.total_tokens ?? 0,
+    },
+    provider: 'llamacpp',
+  };
 }
 
 async function executeLlamaServerHttpStream(
@@ -493,81 +721,84 @@ async function executeLlamaServerHttpStream(
   const baseUrl = getLlamaServerUrl();
   const startTime = Date.now();
 
-  try {
-    const targetModel = await resolveLlamaServerModel(req.model);
-    const payload: Record<string, any> = {
-      model: targetModel,
-      messages: req.messages && req.messages.length > 0
-        ? req.messages
-        : [{ role: 'user', content: req.prompt }],
-      stream: true,
-      temperature: req.temperature ?? 0.7,
-      max_tokens: req.max_tokens ?? 2048,
-    };
-    if (req.chat_template_kwargs) {
-      payload.chat_template_kwargs = req.chat_template_kwargs;
-    }
+  const targetModel = await resolveLlamaServerModel(req.model);
+  const payload: Record<string, any> = {
+    model: targetModel,
+    messages: req.messages && req.messages.length > 0
+      ? req.messages
+      : [{ role: 'user', content: req.prompt }],
+    stream: true,
+    temperature: req.temperature ?? 0.7,
+    max_tokens: req.max_tokens ?? 2048,
+  };
 
-    const res = await fetch(`${baseUrl}/v1/chat/completions`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    });
+  if (req.chat_template_kwargs) {
+    payload.chat_template_kwargs = req.chat_template_kwargs;
+  }
+  if (req.top_p !== undefined) {
+    payload.top_p = req.top_p;
+  }
+  if (req.stop !== undefined) {
+    payload.stop = req.stop;
+  }
 
-    if (!res.ok || !res.body) {
-      const errText = await res.text();
-      await onError(
-        `llama.cpp server stream error (${res.status}): ${errText}`
-      );
-      return;
-    }
+  const res = await fetch(`${baseUrl}/v1/chat/completions`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
 
-    const reader = res.body.getReader();
-    const decoder = new TextDecoder();
-    let fullResponse = '';
-    let buffer = '';
+  if (!res.ok || !res.body) {
+    const errText = await res.text();
+    await onError(
+      `llama.cpp server stream error (${res.status}): ${errText}`
+    );
+    return;
+  }
 
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let fullResponse = '';
+  let buffer = '';
 
-      buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split('\n');
-      buffer = lines.pop() || '';
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
 
-      for (const line of lines) {
-        const trimmed = line.trim();
-        if (!trimmed || trimmed.startsWith(':')) continue;
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split('\n');
+    buffer = lines.pop() || '';
 
-        if (trimmed.startsWith('data: ')) {
-          const jsonStr = trimmed.slice(6).trim();
-          if (jsonStr === '[DONE]') continue;
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith(':')) continue;
 
-          try {
-            const parsed = JSON.parse(jsonStr);
-            const delta =
-              parsed.choices?.[0]?.delta?.content ??
-              parsed.choices?.[0]?.delta?.reasoning_content;
-            if (delta) {
-              fullResponse += delta;
-              await onDelta(delta);
-            }
-          } catch {}
-        }
+      if (trimmed.startsWith('data: ')) {
+        const jsonStr = trimmed.slice(6).trim();
+        if (jsonStr === '[DONE]') continue;
+
+        try {
+          const parsed = JSON.parse(jsonStr);
+          const delta =
+            parsed.choices?.[0]?.delta?.content ??
+            parsed.choices?.[0]?.delta?.reasoning_content;
+          if (delta) {
+            fullResponse += delta;
+            await onDelta(delta);
+          }
+        } catch {}
       }
     }
-
-    const duration_seconds = (Date.now() - startTime) / 1000;
-    await onComplete({
-      success: true,
-      response: fullResponse,
-      duration_seconds,
-      num_turns: 1,
-      provider: 'llamacpp',
-    });
-  } catch (err: any) {
-    await onError(`llama.cpp server stream failed: ${err.message}`);
   }
+
+  const duration_seconds = (Date.now() - startTime) / 1000;
+  await onComplete({
+    success: true,
+    response: fullResponse,
+    duration_seconds,
+    num_turns: 1,
+    provider: 'llamacpp',
+  });
 }
 
 function buildCliArgs(req: ChatRequest): {

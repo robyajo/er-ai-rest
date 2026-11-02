@@ -1,20 +1,18 @@
 import { Hono } from 'hono';
 import { streamSSE } from 'hono/streaming';
-import { randomUUID } from 'node:crypto';
 import { getForbiddenMessage, isScopeAllowedForProvider } from '../auth.js';
 import {
   executeLlamaCpp,
   executeLlamaCppStream,
   fetchLlamaDynamicModels,
+  forwardLlamaChatCompletions,
+  forwardLlamaCompletions,
+  forwardLlamaGet,
+  forwardLlamaNativeCompletion,
   isLlamaServerReachable,
   scanAllLocalGgufFiles,
 } from '../llamacpp.js';
-import {
-  formatOpenAIChunk,
-  formatOpenAIResponse,
-  messagesToPrompt,
-} from '../openai.js';
-import type { AuthScope, ChatRequest, OpenAIChatRequest } from '../types.js';
+import type { AuthScope, ChatRequest } from '../types.js';
 
 type Env = {
   Variables: {
@@ -84,7 +82,17 @@ llamaRouter.get('/v1/models', async (c) => {
   });
 });
 
-// POST /llama/api/chat
+// GET /llama/props (Server diagnostic props)
+llamaRouter.get('/props', async (c) => {
+  return forwardLlamaGet(c, '/props');
+});
+
+// GET /llama/slots (Server slot allocation diagnostic)
+llamaRouter.get('/slots', async (c) => {
+  return forwardLlamaGet(c, '/slots');
+});
+
+// POST /llama/api/chat (Simplified custom JSON chat API)
 llamaRouter.post('/api/chat', async (c) => {
   const body = await c.req.json<ChatRequest>().catch(() => null);
 
@@ -92,7 +100,6 @@ llamaRouter.post('/api/chat', async (c) => {
     return c.json({ error: 'Missing required field: prompt' }, 400);
   }
 
-  // Force llamacpp provider
   const chatReq: ChatRequest = { ...body, provider: 'llamacpp' };
 
   if (chatReq.stream) {
@@ -125,81 +132,35 @@ llamaRouter.post('/api/chat', async (c) => {
   return c.json(result);
 });
 
-// POST /llama/v1/chat/completions
+// POST /llama/v1/chat/completions (OpenAI Chat Completions - High Speed Streaming/Non-Streaming)
 llamaRouter.post('/v1/chat/completions', async (c) => {
-  const body = await c.req.json<OpenAIChatRequest>().catch(() => null);
+  const body = await c.req.json().catch(() => null);
 
   if (!body || !body.messages || body.messages.length === 0) {
     return c.json({ error: 'Missing required field: messages' }, 400);
   }
 
-  const prompt = messagesToPrompt(body.messages);
-  const model = body.model || 'qwen3.5-0.8b';
-  const reqId = `chatcmpl-${randomUUID()}`;
+  return forwardLlamaChatCompletions(c, body);
+});
 
-  const chatReq: ChatRequest = {
-    prompt,
-    messages: body.messages,
-    chat_template_kwargs: body.chat_template_kwargs,
-    model,
-    provider: 'llamacpp',
-    stream: body.stream ?? false,
-    temperature: body.temperature,
-    max_tokens: body.max_tokens,
-  };
+// POST /llama/v1/completions (OpenAI Legacy Text Completions - High Speed Streaming/Non-Streaming)
+llamaRouter.post('/v1/completions', async (c) => {
+  const body = await c.req.json().catch(() => null);
 
-  if (body.stream) {
-    return streamSSE(c, async (stream) => {
-      await stream.writeSSE({
-        data: JSON.stringify(
-          formatOpenAIChunk(reqId, model, '', null, 'assistant')
-        ),
-      });
-
-      await executeLlamaCppStream(
-        chatReq,
-        async (delta) => {
-          await stream.writeSSE({
-            data: JSON.stringify(formatOpenAIChunk(reqId, model, delta, null)),
-          });
-        },
-        async () => {
-          await stream.writeSSE({
-            data: JSON.stringify(formatOpenAIChunk(reqId, model, '', 'stop')),
-          });
-          await stream.writeSSE({
-            data: '[DONE]',
-          });
-        },
-        async (error) => {
-          await stream.writeSSE({
-            data: JSON.stringify({
-              error: { message: error, type: 'llamacpp_error' },
-            }),
-          });
-          await stream.writeSSE({
-            data: '[DONE]',
-          });
-        }
-      );
-    });
+  if (!body || (body.prompt === undefined && body.prompt === null)) {
+    return c.json({ error: 'Missing required field: prompt' }, 400);
   }
 
-  const result = await executeLlamaCpp(chatReq);
+  return forwardLlamaCompletions(c, body);
+});
 
-  if (!result.success && result.error) {
-    return c.json(
-      {
-        error: {
-          message: result.error,
-          type: 'llamacpp_error',
-        },
-      },
-      500
-    );
+// POST /llama/completion (Native llama.cpp completion API)
+llamaRouter.post('/completion', async (c) => {
+  const body = await c.req.json().catch(() => null);
+
+  if (!body) {
+    return c.json({ error: 'Missing request body' }, 400);
   }
 
-  return c.json(
-    formatOpenAIResponse(reqId, model, result.response, result.usage)
-  );
+  return forwardLlamaNativeCompletion(c, body);
 });
