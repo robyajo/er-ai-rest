@@ -139,6 +139,8 @@ llamaRouter.post('/v1/chat/completions', async (c) => {
 
   const chatReq: ChatRequest = {
     prompt,
+    messages: body.messages,
+    chat_template_kwargs: body.chat_template_kwargs,
     model,
     provider: 'llamacpp',
     stream: body.stream ?? false,

@@ -428,13 +428,18 @@ async function executeLlamaServerHttp(req: ChatRequest): Promise<ChatResponse> {
 
   try {
     const targetModel = await resolveLlamaServerModel(req.model);
-    const payload = {
+    const payload: Record<string, any> = {
       model: targetModel,
-      messages: [{ role: 'user', content: req.prompt }],
+      messages: req.messages && req.messages.length > 0
+        ? req.messages
+        : [{ role: 'user', content: req.prompt }],
       stream: false,
       temperature: req.temperature ?? 0.7,
       max_tokens: req.max_tokens ?? 2048,
     };
+    if (req.chat_template_kwargs) {
+      payload.chat_template_kwargs = req.chat_template_kwargs;
+    }
 
     const res = await fetch(`${baseUrl}/v1/chat/completions`, {
       method: 'POST',
@@ -490,13 +495,18 @@ async function executeLlamaServerHttpStream(
 
   try {
     const targetModel = await resolveLlamaServerModel(req.model);
-    const payload = {
+    const payload: Record<string, any> = {
       model: targetModel,
-      messages: [{ role: 'user', content: req.prompt }],
+      messages: req.messages && req.messages.length > 0
+        ? req.messages
+        : [{ role: 'user', content: req.prompt }],
       stream: true,
       temperature: req.temperature ?? 0.7,
       max_tokens: req.max_tokens ?? 2048,
     };
+    if (req.chat_template_kwargs) {
+      payload.chat_template_kwargs = req.chat_template_kwargs;
+    }
 
     const res = await fetch(`${baseUrl}/v1/chat/completions`, {
       method: 'POST',

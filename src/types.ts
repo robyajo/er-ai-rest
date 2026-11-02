@@ -2,6 +2,8 @@ export type ProviderType = "agy" | "llamacpp" | "llama" | "auto";
 
 export interface ChatRequest {
   prompt: string;
+  messages?: OpenAIMessage[];
+  chat_template_kwargs?: Record<string, any>;
   conversation_id?: string;
   model?: string;
   provider?: ProviderType;
@@ -66,6 +68,7 @@ export interface OpenAIMessage {
 export interface OpenAIChatRequest {
   model?: string;
   messages: OpenAIMessage[];
+  chat_template_kwargs?: Record<string, any>;
   stream?: boolean;
   temperature?: number;
   max_tokens?: number;
