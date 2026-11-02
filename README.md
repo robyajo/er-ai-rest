@@ -86,6 +86,15 @@ LLAMA_MODEL_PATH=/path/to/your/model.gguf
 
 ---
 
+## 🌐 Production & Local Endpoints
+
+| Lingkungan | Base URL Gateway | Prefix Antigravity | Prefix llama.cpp |
+| :--- | :--- | :--- | :--- |
+| **Produksi (VPS)** | `https://er-ai-api.mooo.com/v1` | `https://er-ai-api.mooo.com/agy/v1` | `https://er-ai-api.mooo.com/llama/v1` |
+| **Lokal (Dev)** | `http://localhost:8060/v1` | `http://localhost:8060/agy/v1` | `http://localhost:8060/llama/v1` |
+
+---
+
 ## 📡 API Endpoints Overview
 
 | Modul | Endpoint | Deskripsi |

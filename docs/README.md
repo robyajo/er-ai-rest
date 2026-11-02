@@ -26,6 +26,15 @@ Selamat datang di pusat dokumentasi **`agy-rest`** — Gateway REST & OpenAI-Com
 
 ---
 
+## 🌐 Host & Domain Layanan Produksi
+
+| Lingkungan | Base URL Gateway | Prefix Antigravity | Prefix llama.cpp |
+| :--- | :--- | :--- | :--- |
+| **Produksi (VPS)** | `https://er-ai-api.mooo.com/v1` | `https://er-ai-api.mooo.com/agy/v1` | `https://er-ai-api.mooo.com/llama/v1` |
+| **Lokal (Dev)** | `http://localhost:8060/v1` | `http://localhost:8060/agy/v1` | `http://localhost:8060/llama/v1` |
+
+---
+
 ## 🌐 Ikhtisar Rute & Prefix URL
 
 | Kategori | Prefix Route | Deskripsi |
