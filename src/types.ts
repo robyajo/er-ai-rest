@@ -78,3 +78,12 @@ export interface ModelInfo {
   provider: "agy" | "llamacpp";
   description?: string;
 }
+
+export type AuthScope = 'all' | 'agy' | 'llamacpp';
+
+export interface AuthResult {
+  authenticated: boolean;
+  scope?: AuthScope;
+  error?: string;
+  statusCode?: 401 | 403;
+}

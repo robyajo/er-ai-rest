@@ -1,10 +1,16 @@
-import { loadEnvFile } from "node:process";
-import { serve } from "@hono/node-server";
-import { Hono } from "hono";
-import { cors } from "hono/cors";
-import { streamSSE } from "hono/streaming";
-import { randomUUID } from "node:crypto";
-import { executeAgy, executeAgyStream, SUPPORTED_MODELS } from "./agy.js";
+import { loadEnvFile } from 'node:process';
+import { serve } from '@hono/node-server';
+import { Hono } from 'hono';
+import { cors } from 'hono/cors';
+import { streamSSE } from 'hono/streaming';
+import { randomUUID } from 'node:crypto';
+import { executeAgy, executeAgyStream, SUPPORTED_MODELS } from './agy.js';
+import {
+  getClientToken,
+  getForbiddenMessage,
+  isScopeAllowedForProvider,
+  verifyClientToken,
+} from './auth.js';
 import {
   executeLlamaCpp,
   executeLlamaCppStream,
@@ -12,13 +18,13 @@ import {
   isLlamaCppTarget,
   isLlamaServerReachable,
   SUPPORTED_LLAMA_MODELS,
-} from "./llamacpp.js";
+} from './llamacpp.js';
 import {
   formatOpenAIChunk,
   formatOpenAIResponse,
   messagesToPrompt,
-} from "./openai.js";
-import type { ChatRequest, ModelInfo, OpenAIChatRequest } from "./types.js";
+} from './openai.js';
+import type { AuthScope, ChatRequest, ModelInfo, OpenAIChatRequest } from './types.js';
 
 // Auto-load .env file if present
 try {
@@ -27,39 +33,40 @@ try {
   // .env file not found or already provided via environment
 }
 
-const app = new Hono();
+type Env = {
+  Variables: {
+    authScope: AuthScope;
+  };
+};
+
+const app = new Hono<Env>();
 
 // Enable CORS for all routes
-app.use("*", cors());
+app.use('*', cors());
 
-// API Key Authentication Middleware
-app.use("*", async (c, next) => {
-  const apiKey = process.env.API_KEY;
-  if (!apiKey) return next();
-
-  if (c.req.path === "/" || c.req.path === "/health") {
+// API Key Authentication Middleware with Provider Separation
+app.use('*', async (c, next) => {
+  if (c.req.path === '/' || c.req.path === '/health') {
     return next();
   }
 
-  const authHeader = c.req.header("Authorization");
-  const token =
-    authHeader?.replace(/^Bearer\s+/i, "") ||
-    c.req.header("x-api-key") ||
-    c.req.header("api-key");
+  const token = getClientToken(c);
+  const auth = verifyClientToken(token);
 
-  if (!token || token !== apiKey) {
+  if (!auth.authenticated) {
     return c.json(
       {
         error: {
-          message: "Unauthorized: Invalid or missing API key",
-          type: "invalid_request_error",
-          code: "invalid_api_key",
+          message: auth.error || 'Unauthorized: Invalid or missing API key',
+          type: 'invalid_request_error',
+          code: 'invalid_api_key',
         },
       },
-      401,
+      auth.statusCode || 401
     );
   }
 
+  c.set('authScope', auth.scope || 'all');
   return next();
 });
 
@@ -84,61 +91,67 @@ async function getAllAvailableModels(): Promise<ModelInfo[]> {
 }
 
 // Root: API Documentation & Status
-app.get("/", async (c) => {
+app.get('/', async (c) => {
   const llamaServerUp = await isLlamaServerReachable();
 
   return c.json({
-    service: "agy-rest",
+    service: 'agy-rest',
     description:
-      "REST & OpenAI-compatible API gateway for Antigravity CLI (agy) & llama.cpp (Local GGUF)",
-    version: "1.1.0",
+      'REST & OpenAI-compatible API gateway with isolated authentication for Antigravity (Cloud) & llama.cpp (Local GGUF)',
+    version: '1.2.0',
+    auth_modes: {
+      master_key: 'Grants access to both Antigravity & llama.cpp models',
+      agy_api_key: 'Restricted strictly to Antigravity (Gemini, Claude, GPT-OSS)',
+      llama_api_key: 'Restricted strictly to llama.cpp (Local GGUF offline inference)',
+    },
     providers: {
       antigravity: {
-        status: "available",
+        status: 'available',
         default_models: SUPPORTED_MODELS.map((m) => m.id),
       },
       llamacpp: {
-        status: llamaServerUp ? "server_connected" : "cli_mode",
+        status: llamaServerUp ? 'server_connected' : 'cli_mode',
         default_models: SUPPORTED_LLAMA_MODELS.map((m) => m.id),
       },
     },
     endpoints: [
-      { method: "GET", path: "/health", description: "Health check" },
+      { method: 'GET', path: '/health', description: 'Health check' },
       {
-        method: "GET",
-        path: "/models",
-        description: "List available models (agy + llama.cpp)",
+        method: 'GET',
+        path: '/models',
+        description: 'List available models (filtered by API key permissions)',
       },
       {
-        method: "GET",
-        path: "/v1/models",
-        description: "OpenAI-compatible models list",
+        method: 'GET',
+        path: '/v1/models',
+        description: 'OpenAI-compatible models list (filtered by API key permissions)',
       },
       {
-        method: "POST",
-        path: "/api/chat",
-        description: "Direct Chat API (supports streaming & multi-turn)",
+        method: 'POST',
+        path: '/api/chat',
+        description: 'Direct Chat API (supports streaming & multi-turn)',
       },
       {
-        method: "POST",
-        path: "/v1/chat/completions",
-        description: "OpenAI-compatible Chat Completion API",
+        method: 'POST',
+        path: '/v1/chat/completions',
+        description: 'OpenAI-compatible Chat Completion API with scope enforcement',
       },
     ],
     features: [
-      "Multi-provider routing: Google Antigravity (Gemini/Claude) & llama.cpp (Local GGUF models)",
-      "Real-time streaming via Server-Sent Events (SSE)",
-      "100% OpenAI Client compatibility (NextChat, Chatbox, Cursor, LangChain)",
-      "Automatic fallback between llama-server HTTP API and direct llama CLI execution",
+      'Isolated API Keys for Antigravity vs llama.cpp for maximum safety and quota control',
+      'Multi-provider routing: Google Antigravity & llama.cpp',
+      'Real-time streaming via Server-Sent Events (SSE)',
+      '100% OpenAI Client compatibility (NextChat, Chatbox, Cursor, LangChain)',
+      'Automatic fallback between llama-server HTTP API and direct llama CLI execution',
     ],
   });
 });
 
 // Health check
-app.get("/health", async (c) => {
+app.get('/health', async (c) => {
   const llamaServerUp = await isLlamaServerReachable();
   return c.json({
-    status: "ok",
+    status: 'ok',
     timestamp: new Date().toISOString(),
     providers: {
       agy: true,
@@ -147,21 +160,25 @@ app.get("/health", async (c) => {
   });
 });
 
-// Model list
-app.get("/models", async (c) => {
-  const models = await getAllAvailableModels();
+// Model list (filtered by client authorization scope)
+app.get('/models', async (c) => {
+  const scope = c.get('authScope');
+  const allModels = await getAllAvailableModels();
+  const models = allModels.filter((m) => isScopeAllowedForProvider(scope, m.provider));
   return c.json({ models });
 });
 
-app.get("/v1/models", async (c) => {
-  const models = await getAllAvailableModels();
+app.get('/v1/models', async (c) => {
+  const scope = c.get('authScope');
+  const allModels = await getAllAvailableModels();
+  const models = allModels.filter((m) => isScopeAllowedForProvider(scope, m.provider));
   return c.json({
-    object: "list",
+    object: 'list',
     data: models.map((m) => ({
       id: m.id,
-      object: "model",
+      object: 'model',
       created: 1793568000,
-      owned_by: m.provider === "llamacpp" ? "llama.cpp" : "google-antigravity",
+      owned_by: m.provider === 'llamacpp' ? 'llama.cpp' : 'google-antigravity',
       name: m.name,
       description: m.description,
       provider: m.provider,
@@ -170,35 +187,50 @@ app.get("/v1/models", async (c) => {
 });
 
 // Direct Chat API
-app.post("/api/chat", async (c) => {
+app.post('/api/chat', async (c) => {
   const body = await c.req.json<ChatRequest>().catch(() => null);
 
   if (!body || !body.prompt) {
-    return c.json({ error: "Missing required field: prompt" }, 400);
+    return c.json({ error: 'Missing required field: prompt' }, 400);
   }
 
   const isLlama = isLlamaCppTarget(body.model, body.provider);
+  const targetProvider: 'agy' | 'llamacpp' = isLlama ? 'llamacpp' : 'agy';
+  const scope = c.get('authScope');
+
+  if (!isScopeAllowedForProvider(scope, targetProvider)) {
+    return c.json(
+      {
+        error: {
+          message: getForbiddenMessage(scope, targetProvider),
+          type: 'permission_denied',
+          code: 'forbidden_provider',
+        },
+      },
+      403
+    );
+  }
 
   // Streaming response
   if (body.stream) {
     return streamSSE(c, async (stream) => {
       const onDelta = async (delta: string) => {
         await stream.writeSSE({
-          event: "delta",
+          event: 'delta',
           data: JSON.stringify({ text: delta }),
         });
       };
 
       const onDone = async (result: any) => {
         await stream.writeSSE({
-          event: "done",
+          event: 'done',
           data: JSON.stringify(result),
         });
       };
 
       const onError = async (error: string) => {
         await stream.writeSSE({
-          event: "error",
+          event: 'error',
           data: JSON.stringify({ error }),
         });
       };
@@ -217,21 +249,40 @@ app.post("/api/chat", async (c) => {
 });
 
 // OpenAI-Compatible Chat Completions API
-app.post("/v1/chat/completions", async (c) => {
+app.post('/v1/chat/completions', async (c) => {
   const body = await c.req.json<OpenAIChatRequest>().catch(() => null);
 
   if (!body || !body.messages || body.messages.length === 0) {
-    return c.json({ error: "Missing required field: messages" }, 400);
+    return c.json({ error: 'Missing required field: messages' }, 400);
   }
 
   const prompt = messagesToPrompt(body.messages);
+  const isLlama = isLlamaCppTarget(body.model, body.provider);
+  const targetProvider: 'agy' | 'llamacpp' = isLlama ? 'llamacpp' : 'agy';
+  const scope = c.get('authScope');
+
+  // Verify key permissions for targeted provider
+  if (!isScopeAllowedForProvider(scope, targetProvider)) {
+    return c.json(
+      {
+        error: {
+          message: getForbiddenMessage(scope, targetProvider),
+          type: 'permission_denied',
+          code: 'forbidden_provider',
+        },
+      },
+      403
+    );
+  }
+
   const model =
     body.model ||
-    (process.env.DEFAULT_PROVIDER === "llamacpp"
-      ? "qwen3.5-0.8b"
-      : "gemini-3.8-flash-high");
+    (isLlama
+      ? 'qwen3.5-0.8b'
+      : process.env.DEFAULT_PROVIDER === 'llamacpp'
+      ? 'qwen3.5-0.8b'
+      : 'gemini-3.8-flash-high');
   const reqId = `chatcmpl-${randomUUID()}`;
-  const isLlama = isLlamaCppTarget(body.model, body.provider);
 
   // Streaming Response
   if (body.stream) {
@@ -239,7 +290,7 @@ app.post("/v1/chat/completions", async (c) => {
       // Send initial role chunk
       await stream.writeSSE({
         data: JSON.stringify(
-          formatOpenAIChunk(reqId, model, "", null, "assistant"),
+          formatOpenAIChunk(reqId, model, '', null, 'assistant')
         ),
       });
 
@@ -251,10 +302,10 @@ app.post("/v1/chat/completions", async (c) => {
 
       const onDone = async () => {
         await stream.writeSSE({
-          data: JSON.stringify(formatOpenAIChunk(reqId, model, "", "stop")),
+          data: JSON.stringify(formatOpenAIChunk(reqId, model, '', 'stop')),
         });
         await stream.writeSSE({
-          data: "[DONE]",
+          data: '[DONE]',
         });
       };
 
@@ -263,12 +314,12 @@ app.post("/v1/chat/completions", async (c) => {
           data: JSON.stringify({
             error: {
               message: error,
-              type: isLlama ? "llamacpp_error" : "internal_error",
+              type: isLlama ? 'llamacpp_error' : 'internal_error',
             },
           }),
         });
         await stream.writeSSE({
-          data: "[DONE]",
+          data: '[DONE]',
         });
       };
 
@@ -306,20 +357,20 @@ app.post("/v1/chat/completions", async (c) => {
       {
         error: {
           message: result.error,
-          type: isLlama ? "llamacpp_error" : "agy_error",
+          type: isLlama ? 'llamacpp_error' : 'agy_error',
         },
       },
-      500,
+      500
     );
   }
 
   return c.json(
-    formatOpenAIResponse(reqId, model, result.response, result.usage),
+    formatOpenAIResponse(reqId, model, result.response, result.usage)
   );
 });
 
 const port = Number(process.env.PORT) || 8060;
-const host = process.env.HOST || "0.0.0.0";
+const host = process.env.HOST || '0.0.0.0';
 
 serve(
   {
@@ -329,7 +380,7 @@ serve(
   },
   (info) => {
     console.log(
-      `🚀 agy-rest server running on http://${info.address}:${info.port}`,
+      `🚀 agy-rest server running on http://${info.address}:${info.port}`
     );
-  },
+  }
 );

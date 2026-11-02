@@ -35,6 +35,11 @@
     },
     {
       "type": "improvement",
+      "id": "Pemisahan hak akses token keamanan mandiri antara pemrosesan cloud dan pemrosesan lokal guna mencegah penggunaan kuota tanpa izin dan menjamin isolasi hak akses.",
+      "en": "Role-based security token segregation between cloud processing and local inference to prevent unauthorized quota consumption and ensure strict access isolation."
+    },
+    {
+      "type": "improvement",
       "id": "Penyesuaian rute cerdas otomatis antara model penalaran mendalam dan model lokal yang hemat daya.",
       "en": "Intelligent automated routing between deep reasoning models and power-efficient local models."
     },
