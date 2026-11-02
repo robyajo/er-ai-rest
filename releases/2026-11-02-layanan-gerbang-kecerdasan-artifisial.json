@@ -35,6 +35,16 @@
     },
     {
       "type": "improvement",
+      "id": "Penataan arsitektur layanan secara modular dengan pemisahan jalur akses mandiri per modul serta pembaruan panduan dokumentasi terpisah untuk kemudahan integrasi.",
+      "en": "Modular service architecture restructuring with dedicated path separation per module and separated comprehensive documentation for seamless integration."
+    },
+    {
+      "type": "improvement",
+      "id": "Penyediaan skrip otomatisasi pemasangan di server publik dilengkapi fitur pembersihan cache kompilasi dan pemeriksaan status berkala.",
+      "en": "Automated server deployment routine featuring build cache cleanup and instant health verification."
+    },
+    {
+      "type": "improvement",
       "id": "Pemisahan hak akses token keamanan mandiri antara pemrosesan cloud dan pemrosesan lokal guna mencegah penggunaan kuota tanpa izin dan menjamin isolasi hak akses.",
       "en": "Role-based security token segregation between cloud processing and local inference to prevent unauthorized quota consumption and ensure strict access isolation."
     },

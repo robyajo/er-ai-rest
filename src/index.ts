@@ -24,6 +24,8 @@ import {
   formatOpenAIResponse,
   messagesToPrompt,
 } from './openai.js';
+import { agyRouter } from './routes/agy.js';
+import { llamaRouter } from './routes/llamacpp.js';
 import type { AuthScope, ChatRequest, ModelInfo, OpenAIChatRequest } from './types.js';
 
 // Auto-load .env file if present
@@ -70,6 +72,10 @@ app.use('*', async (c, next) => {
   return next();
 });
 
+// Mount Modular Prefixed Routers
+app.route('/agy', agyRouter);
+app.route('/llama', llamaRouter);
+
 // Helper: Get combined models from agy and llama.cpp
 async function getAllAvailableModels(): Promise<ModelInfo[]> {
   const serverModels = await fetchLlamaServerModels();
@@ -97,12 +103,45 @@ app.get('/', async (c) => {
   return c.json({
     service: 'agy-rest',
     description:
-      'REST & OpenAI-compatible API gateway with isolated authentication for Antigravity (Cloud) & llama.cpp (Local GGUF)',
-    version: '1.2.0',
+      'Modular REST & OpenAI-compatible API gateway with isolated authentication for Antigravity (Cloud) & llama.cpp (Local GGUF)',
+    version: '1.3.0',
+    modules: {
+      antigravity: {
+        route_prefix: '/agy',
+        description: 'Dedicated Antigravity endpoints (Gemini, Claude, GPT-OSS)',
+        endpoints: [
+          'GET /agy/models',
+          'GET /agy/v1/models',
+          'POST /agy/api/chat',
+          'POST /agy/v1/chat/completions',
+        ],
+      },
+      llamacpp: {
+        route_prefix: '/llama',
+        description: 'Dedicated llama.cpp endpoints (Local GGUF models)',
+        endpoints: [
+          'GET /llama/models',
+          'GET /llama/v1/models',
+          'GET /llama/status',
+          'POST /llama/api/chat',
+          'POST /llama/v1/chat/completions',
+        ],
+      },
+      unified_gateway: {
+        route_prefix: '/',
+        description: 'Unified smart gateway routing to both providers automatically based on model',
+        endpoints: [
+          'GET /models',
+          'GET /v1/models',
+          'POST /api/chat',
+          'POST /v1/chat/completions',
+        ],
+      },
+    },
     auth_modes: {
       master_key: 'Grants access to both Antigravity & llama.cpp models',
-      agy_api_key: 'Restricted strictly to Antigravity (Gemini, Claude, GPT-OSS)',
-      llama_api_key: 'Restricted strictly to llama.cpp (Local GGUF offline inference)',
+      agy_api_key: 'Restricted strictly to Antigravity (/agy and cloud models)',
+      llama_api_key: 'Restricted strictly to llama.cpp (/llama and local models)',
     },
     providers: {
       antigravity: {
@@ -114,36 +153,6 @@ app.get('/', async (c) => {
         default_models: SUPPORTED_LLAMA_MODELS.map((m) => m.id),
       },
     },
-    endpoints: [
-      { method: 'GET', path: '/health', description: 'Health check' },
-      {
-        method: 'GET',
-        path: '/models',
-        description: 'List available models (filtered by API key permissions)',
-      },
-      {
-        method: 'GET',
-        path: '/v1/models',
-        description: 'OpenAI-compatible models list (filtered by API key permissions)',
-      },
-      {
-        method: 'POST',
-        path: '/api/chat',
-        description: 'Direct Chat API (supports streaming & multi-turn)',
-      },
-      {
-        method: 'POST',
-        path: '/v1/chat/completions',
-        description: 'OpenAI-compatible Chat Completion API with scope enforcement',
-      },
-    ],
-    features: [
-      'Isolated API Keys for Antigravity vs llama.cpp for maximum safety and quota control',
-      'Multi-provider routing: Google Antigravity & llama.cpp',
-      'Real-time streaming via Server-Sent Events (SSE)',
-      '100% OpenAI Client compatibility (NextChat, Chatbox, Cursor, LangChain)',
-      'Automatic fallback between llama-server HTTP API and direct llama CLI execution',
-    ],
   });
 });
 
@@ -160,7 +169,7 @@ app.get('/health', async (c) => {
   });
 });
 
-// Model list (filtered by client authorization scope)
+// Unified Model list (filtered by client authorization scope)
 app.get('/models', async (c) => {
   const scope = c.get('authScope');
   const allModels = await getAllAvailableModels();
@@ -186,7 +195,7 @@ app.get('/v1/models', async (c) => {
   });
 });
 
-// Direct Chat API
+// Unified Direct Chat API
 app.post('/api/chat', async (c) => {
   const body = await c.req.json<ChatRequest>().catch(() => null);
 
@@ -248,7 +257,7 @@ app.post('/api/chat', async (c) => {
   return c.json(result);
 });
 
-// OpenAI-Compatible Chat Completions API
+// Unified OpenAI-Compatible Chat Completions API
 app.post('/v1/chat/completions', async (c) => {
   const body = await c.req.json<OpenAIChatRequest>().catch(() => null);
 

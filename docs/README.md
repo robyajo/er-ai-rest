@@ -1,24 +1,35 @@
-# 📚 Dokumentasi agy-rest
+# 📑 Dokumentasi Resmi `agy-rest`
 
-Selamat datang di dokumentasi resmi **agy-rest** — Gateway REST & OpenAI API untuk Google Antigravity CLI.
+Selamat datang di pusat dokumentasi **`agy-rest`** — Gateway REST & OpenAI-Compatible multi-engine untuk **Google Antigravity CLI (`agy`)** dan **llama.cpp (Local GGUF models)**.
 
 ---
 
-## 📑 Daftar Isi Dokumentasi
+## 🗂️ Navigasi Modul & Panduan
 
-1. **[🔑 Panduan Konfigurasi API Key](./API_KEY_SETUP.md)**
-   * Cara kerja autentikasi API Key.
-   * Cara mengaktifkan API Key di file `.env` atau systemd service.
-   * Format header yang didukung (`Authorization: Bearer`, `x-api-key`, `api-key`).
-   * Cara menguji proteksi endpoint.
+### 1. Modul Mesin AI (Modular Architecture)
+- **[☁️ Antigravity (agy) Guide (`/agy/*`)](./agy/README.md)**
+  Panduan lengkap endpoint cloud berkecepatan tinggi dengan model Gemini 3.8 Flash, Claude Sonnet 4.6, dan GPT-OSS 120B.
+- **[🦙 llama.cpp Guide (`/llama/*`)](./llama/README.md)**
+  Panduan lengkap endpoint model lokal mandiri (offline) berbasis GGUF dengan biner llama.cpp dan dual mode (server HTTP & CLI fallback).
 
-2. **[📱 Panduan Integrasi Klien](./CLIENT_INTEGRATION.md)**
-   * Menghubungkan aplikasi Chatbot GUI (Chatbox, NextChat, Open WebUI, LibreChat).
-   * Contoh kode Python menggunakan library resmi `openai`.
-   * Contoh kode TypeScript / Node.js.
-   * Panduan cURL di Linux terminal.
+---
 
-3. **[⚙️ Konfigurasi Produksi & Nginx](../README.md)**
-   * Pengaturan systemd service agar aktif 24/7.
-   * Konfigurasi Nginx reverse proxy + SSL Let's Encrypt.
-   * Penanganan port 8060.
+### 2. Autentikasi & Keamanan Kunci
+- **[🔑 Panduan Konfigurasi API Key & Role Separation](./API_KEY_SETUP.md)**
+  Panduan mengaktifkan token akses dan pemisahan kunci antara `API_KEY` (Master), `AGY_API_KEY` (Khusus cloud), dan `LLAMA_API_KEY` (Khusus model lokal).
+
+---
+
+### 3. Integrasi Klien Eksternal
+- **[📱 Panduan Integrasi Klien (Python, Node.js, Chatbox, NextChat)](./CLIENT_INTEGRATION.md)**
+  Contoh kode lengkap dan konfigurasi aplikasi klien OpenAI-compatible untuk menghubungkan gateway ke perangkat kerja Anda.
+
+---
+
+## 🌐 Ikhtisar Rute & Prefix URL
+
+| Kategori | Prefix Route | Deskripsi |
+| :--- | :--- | :--- |
+| **Antigravity Dedicated** | `/agy/v1/chat/completions`<br>`/agy/v1/models` | Rute khusus model cloud Antigravity |
+| **llama.cpp Dedicated** | `/llama/v1/chat/completions`<br>`/llama/v1/models` | Rute khusus model lokal GGUF offline |
+| **Unified Gateway** | `/v1/chat/completions`<br>`/v1/models` | Rute pintar otomatis yang mengarahkan kueri ke cloud atau lokal berdasarkan nama model |
