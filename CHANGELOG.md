@@ -17,6 +17,10 @@ Semua perubahan penting pada proyek **`agy-rest`** didokumentasikan dalam berkas
   - Kompilasi TypeScript ke JavaScript siap produksi.
   - Otomatis me-restart systemd service `agy-rest` di lingkungan VPS Linux.
   - Menjalankan uji kesehatan mandiri (`curl /health`).
+- **Laboratorium Pengujian Terpadu (`labs/`)**:
+  - `labs/index.html`: Web GUI Testing Laboratory interaktif dengan monitor live ping, pemilih endpoint preset, editor request JSON, real-time SSE stream reader, dan visualisasi security matrix.
+  - `labs/test-runner.ts`: Skrip pengujian otomatis terminal (`pnpm run test:endpoints`) mencakup 16 skenario uji dengan laporan status berwarna dan penghitung latensi.
+  - `labs/serve.ts`: Server pengujian lokal berbasis Hono di port 8061 (`pnpm run test:lab`).
 - **Dokumentasi Terpisah per Modul**:
   - `docs/agy/README.md`: Panduan khusus integrasi dan pemakaian model Antigravity.
   - `docs/llama/README.md`: Panduan khusus integrasi dan pemakaian model lokal llama.cpp.

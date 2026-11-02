@@ -1,0 +1,658 @@
+<!DOCTYPE html>
+<html lang="id" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>🧪 Er AI Rest — Testing Laboratory</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#f0fdf4',
+              500: '#22c55e',
+              600: '#16a34a',
+              700: '#15803d',
+              900: '#14532d',
+            },
+            dark: {
+              800: '#1e293b',
+              900: '#0f172a',
+              950: '#020617',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    pre code {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    }
+    .custom-scrollbar::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-track {
+      background: #0f172a;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: #334155;
+      border-radius: 4px;
+    }
+  </style>
+</head>
+<body class="bg-dark-950 text-slate-100 min-h-screen font-sans flex flex-col antialiased">
+
+  <!-- Top Navigation Header -->
+  <header class="border-b border-slate-800 bg-dark-900/80 backdrop-blur sticky top-0 z-50 px-6 py-4">
+    <div class="max-w-7xl mx-auto flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-brand-600 to-emerald-400 flex items-center justify-center text-xl shadow-lg shadow-brand-500/20">
+          🧪
+        </div>
+        <div>
+          <h1 class="text-lg font-bold tracking-tight text-white flex items-center gap-2">
+            Er AI Rest <span class="text-xs px-2 py-0.5 rounded-full bg-brand-500/10 text-brand-400 border border-brand-500/20 font-mono">Test Lab v1.4</span>
+          </h1>
+          <p class="text-xs text-slate-400">Pengujian Terpadu Endpoint Antigravity, Llama.cpp & Gateway</p>
+        </div>
+      </div>
+
+      <!-- Quick Server Connection Bar -->
+      <div class="flex flex-wrap items-center gap-3">
+        <div class="flex items-center gap-2 bg-dark-950 border border-slate-800 rounded-lg px-3 py-1.5 text-xs">
+          <span id="serverStatusDot" class="w-2.5 h-2.5 rounded-full bg-slate-500 animate-pulse"></span>
+          <span id="serverStatusText" class="text-slate-300 font-mono">Memeriksa server...</span>
+        </div>
+        <button id="btnHealthPing" onclick="checkHealth()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 active:scale-95 text-xs font-medium rounded-lg border border-slate-700 transition">
+          🔄 Ping
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content Layout -->
+  <main class="max-w-7xl mx-auto p-6 flex-1 w-full space-y-6">
+
+    <!-- Configuration Accordion -->
+    <section class="bg-dark-900 border border-slate-800 rounded-2xl p-5 shadow-sm">
+      <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-4">
+        <div>
+          <h2 class="text-sm font-semibold text-slate-200 uppercase tracking-wider">⚙️ Konfigurasi Target Server & Kunci Otentikasi</h2>
+          <p class="text-xs text-slate-400 mt-0.5">Konfigurasi host target dan token otentikasi untuk pengujian peran.</p>
+        </div>
+        <div class="flex items-center gap-2">
+          <button onclick="setPreset('local')" class="px-3 py-1 text-xs rounded-md bg-dark-950 border border-slate-700 hover:border-slate-500 text-slate-300 transition">
+            🏠 Localhost (8060)
+          </button>
+          <button onclick="setPreset('vps')" class="px-3 py-1 text-xs rounded-md bg-dark-950 border border-slate-700 hover:border-slate-500 text-slate-300 transition">
+            🌐 VPS Remote
+          </button>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 text-xs font-mono">
+        <div>
+          <label class="block text-slate-400 mb-1 font-sans">Target Server Base URL</label>
+          <input type="text" id="cfgBaseUrl" value="http://localhost:8060" class="w-full bg-dark-950 border border-slate-800 rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-brand-500" />
+        </div>
+        <div>
+          <label class="block text-slate-400 mb-1 font-sans">Master API Key (Full Access)</label>
+          <input type="password" id="cfgMasterKey" value="sk-agy-roby-master-key-8060" class="w-full bg-dark-950 border border-slate-800 rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-brand-500" />
+        </div>
+        <div>
+          <label class="block text-slate-400 mb-1 font-sans">AGY API Key (Cloud Only)</label>
+          <input type="password" id="cfgAgyKey" value="sk-agy-cloud-only-token-8060" class="w-full bg-dark-950 border border-slate-800 rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-brand-500" />
+        </div>
+        <div>
+          <label class="block text-slate-400 mb-1 font-sans">Llama API Key (Local Only)</label>
+          <input type="password" id="cfgLlamaKey" value="sk-llama-local-only-token-8060" class="w-full bg-dark-950 border border-slate-800 rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-brand-500" />
+        </div>
+      </div>
+    </section>
+
+    <!-- Navigation Tabs -->
+    <div class="flex border-b border-slate-800 gap-2 text-sm">
+      <button id="tabBtnSuite" onclick="switchTab('suite')" class="px-4 py-2 font-medium border-b-2 border-brand-500 text-brand-400 flex items-center gap-2 transition">
+        <span>⚡ Automated Test Suite</span>
+      </button>
+      <button id="tabBtnPlayground" onclick="switchTab('playground')" class="px-4 py-2 font-medium border-b-2 border-transparent text-slate-400 hover:text-slate-200 flex items-center gap-2 transition">
+        <span>🎮 Interactive Playground</span>
+      </button>
+      <button id="tabBtnMatrix" onclick="switchTab('matrix')" class="px-4 py-2 font-medium border-b-2 border-transparent text-slate-400 hover:text-slate-200 flex items-center gap-2 transition">
+        <span>🛡️ Security & Role Matrix</span>
+      </button>
+    </div>
+
+    <!-- TAB 1: AUTOMATED TEST SUITE -->
+    <div id="tabContentSuite" class="space-y-4">
+      <div class="flex items-center justify-between bg-dark-900 border border-slate-800 rounded-xl p-4">
+        <div>
+          <h3 class="font-semibold text-slate-200">Uji Seluruh Endpoint Otomatis</h3>
+          <p class="text-xs text-slate-400">Menjalankan 12+ pengujian menyeluruh: rute publik, OpenAI gateway, agy, llama, dan isolasi hak akses token.</p>
+        </div>
+        <button id="btnRunSuite" onclick="runAutomatedSuite()" class="px-4 py-2 bg-brand-600 hover:bg-brand-500 active:scale-95 text-white text-xs font-semibold rounded-lg shadow-lg shadow-brand-500/20 flex items-center gap-2 transition">
+          ▶️ Jalankan Semua Pengujian
+        </button>
+      </div>
+
+      <!-- Progress Summary Bar -->
+      <div id="suiteProgressBar" class="hidden bg-dark-900 border border-slate-800 rounded-xl p-4 space-y-2">
+        <div class="flex justify-between text-xs text-slate-400 font-mono">
+          <span id="suiteProgressLabel">Memulai pengujian...</span>
+          <span id="suiteProgressStats">0/0 Berhasil</span>
+        </div>
+        <div class="w-full bg-dark-950 h-2 rounded-full overflow-hidden border border-slate-800">
+          <div id="suiteProgressFill" class="bg-brand-500 h-full w-0 transition-all duration-200"></div>
+        </div>
+      </div>
+
+      <!-- Test Results Table -->
+      <div class="bg-dark-900 border border-slate-800 rounded-xl overflow-hidden shadow-sm">
+        <table class="w-full text-left border-collapse text-xs">
+          <thead>
+            <tr class="border-b border-slate-800 bg-dark-950/60 text-slate-400 font-mono">
+              <th class="p-3 w-24">STATUS</th>
+              <th class="p-3 w-16">METHOD</th>
+              <th class="p-3">ENDPOINT</th>
+              <th class="p-3">DESKRIPSI / TUJUAN</th>
+              <th class="p-3 w-32">TOKEN DIGUNAKAN</th>
+              <th class="p-3 w-20 text-right">DURASI</th>
+            </tr>
+          </thead>
+          <tbody id="suiteTableBody" class="divide-y divide-slate-800/60 font-mono">
+            <tr>
+              <td colspan="6" class="p-8 text-center text-slate-500 font-sans">
+                Klik tombol <strong class="text-slate-400">"Jalankan Semua Pengujian"</strong> untuk memulai pengetesan.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- TAB 2: INTERACTIVE PLAYGROUND -->
+    <div id="tabContentPlayground" class="hidden grid grid-cols-1 lg:grid-cols-12 gap-6">
+      
+      <!-- Request Builder (Left Column) -->
+      <div class="lg:col-span-5 space-y-4">
+        <div class="bg-dark-900 border border-slate-800 rounded-xl p-5 space-y-4">
+          <h3 class="text-sm font-semibold text-slate-200 uppercase tracking-wider">📤 Request Builder</h3>
+          
+          <!-- Preset Endpoint Picker -->
+          <div>
+            <label class="block text-xs text-slate-400 mb-1">Pilih Endpoint Preset</label>
+            <select id="pgEndpointSelect" onchange="onPlaygroundEndpointChange()" class="w-full bg-dark-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-brand-500">
+              <optgroup label="🌐 Public">
+                <option value="GET|/">GET / (Server Banner)</option>
+                <option value="GET|/health">GET /health (Health Check)</option>
+              </optgroup>
+              <optgroup label="🌉 Unified Gateway (/v1)">
+                <option value="GET|/v1/models">GET /v1/models (OpenAI Models List)</option>
+                <option value="GET|/api/models">GET /api/models (Dynamic Breakdown)</option>
+                <option value="POST|/v1/chat/completions">POST /v1/chat/completions (OpenAI Chat)</option>
+                <option value="POST|/api/chat">POST /api/chat (Unified REST Chat)</option>
+              </optgroup>
+              <optgroup label="☁️ Antigravity Cloud (/agy)">
+                <option value="GET|/agy/models">GET /agy/models (AGY Raw Models)</option>
+                <option value="GET|/agy/v1/models">GET /agy/v1/models (AGY OpenAI Models)</option>
+                <option value="POST|/agy/v1/chat/completions">POST /agy/v1/chat/completions (AGY Stream)</option>
+                <option value="POST|/agy/api/chat">POST /agy/api/chat (AGY REST Chat)</option>
+              </optgroup>
+              <optgroup label="🦙 Llama.cpp Local (/llama)">
+                <option value="GET|/llama/status">GET /llama/status (Engine Status)</option>
+                <option value="GET|/llama/models">GET /llama/models (Local GGUF Models)</option>
+                <option value="GET|/llama/v1/models">GET /llama/v1/models (Llama OpenAI Models)</option>
+                <option value="POST|/llama/v1/chat/completions">POST /llama/v1/chat/completions (Llama Stream)</option>
+                <option value="POST|/llama/api/chat">POST /llama/api/chat (Llama REST Chat)</option>
+              </optgroup>
+            </select>
+          </div>
+
+          <!-- Method & Custom Path -->
+          <div class="flex gap-2">
+            <select id="pgMethod" class="w-24 bg-dark-950 border border-slate-800 rounded-lg px-3 py-2 text-xs font-mono text-slate-200 focus:outline-none focus:border-brand-500">
+              <option value="GET">GET</option>
+              <option value="POST">POST</option>
+            </select>
+            <input type="text" id="pgPath" value="/" class="flex-1 bg-dark-950 border border-slate-800 rounded-lg px-3 py-2 text-xs font-mono text-slate-200 focus:outline-none focus:border-brand-500" />
+          </div>
+
+          <!-- Auth Scope Selector -->
+          <div>
+            <label class="block text-xs text-slate-400 mb-1">Token Otentikasi (Authorization Bearer)</label>
+            <div class="grid grid-cols-4 gap-2 text-xs">
+              <button type="button" onclick="setPlaygroundAuth('master')" id="btnAuthMaster" class="px-2 py-1.5 rounded-md bg-brand-500/10 border border-brand-500/30 text-brand-400 font-medium">Master</button>
+              <button type="button" onclick="setPlaygroundAuth('agy')" id="btnAuthAgy" class="px-2 py-1.5 rounded-md bg-dark-950 border border-slate-800 text-slate-400 hover:text-slate-200">AGY Scope</button>
+              <button type="button" onclick="setPlaygroundAuth('llama')" id="btnAuthLlama" class="px-2 py-1.5 rounded-md bg-dark-950 border border-slate-800 text-slate-400 hover:text-slate-200">Llama Scope</button>
+              <button type="button" onclick="setPlaygroundAuth('none')" id="btnAuthNone" class="px-2 py-1.5 rounded-md bg-dark-950 border border-slate-800 text-slate-400 hover:text-slate-200">No Auth</button>
+            </div>
+          </div>
+
+          <!-- Request Body (JSON) -->
+          <div id="pgBodyContainer">
+            <div class="flex items-center justify-between mb-1">
+              <label class="text-xs text-slate-400">Request Body (JSON)</label>
+              <button type="button" onclick="formatPlaygroundJson()" class="text-[10px] text-slate-500 hover:text-slate-300">Format JSON</button>
+            </div>
+            <textarea id="pgBody" rows="8" class="w-full bg-dark-950 border border-slate-800 rounded-lg p-3 text-xs font-mono text-emerald-400 focus:outline-none focus:border-brand-500 custom-scrollbar resize-none"></textarea>
+          </div>
+
+          <!-- Send Button -->
+          <button id="btnSendPlayground" onclick="executePlaygroundRequest()" class="w-full py-2.5 bg-brand-600 hover:bg-brand-500 active:scale-[0.99] text-white text-xs font-semibold rounded-lg shadow-lg shadow-brand-500/20 flex items-center justify-center gap-2 transition">
+            🚀 Kirim Permintaan (Send Request)
+          </button>
+        </div>
+      </div>
+
+      <!-- Response Viewer (Right Column) -->
+      <div class="lg:col-span-7 space-y-4">
+        <div class="bg-dark-900 border border-slate-800 rounded-xl p-5 space-y-4">
+          <div class="flex items-center justify-between">
+            <h3 class="text-sm font-semibold text-slate-200 uppercase tracking-wider">📥 Response Viewer</h3>
+            <div class="flex items-center gap-3">
+              <span id="respStatusBadge" class="hidden text-xs font-mono px-2 py-0.5 rounded-full bg-slate-800 text-slate-300">200 OK</span>
+              <span id="respDurationBadge" class="hidden text-xs font-mono text-slate-400">0ms</span>
+              <button onclick="copyResponse()" class="text-xs px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 transition">📋 Salin</button>
+            </div>
+          </div>
+
+          <!-- Live Streaming Output Box -->
+          <div id="streamViewerBox" class="hidden space-y-2">
+            <div class="flex items-center justify-between text-xs text-slate-400">
+              <span class="flex items-center gap-1.5 text-brand-400 font-mono">
+                <span class="w-2 h-2 rounded-full bg-brand-500 animate-ping"></span> Live Streaming Transmisi (SSE)
+              </span>
+              <span id="streamCharCount" class="font-mono">0 karakter</span>
+            </div>
+            <div id="streamOutput" class="w-full min-h-[140px] max-h-[300px] overflow-y-auto bg-dark-950 border border-brand-500/30 rounded-lg p-3 text-xs font-mono text-slate-200 whitespace-pre-wrap custom-scrollbar"></div>
+          </div>
+
+          <!-- Raw / Formatted JSON Response Box -->
+          <div>
+            <label class="block text-xs text-slate-400 mb-1">Payload Jawaban (JSON / Text)</label>
+            <pre class="bg-dark-950 border border-slate-800 rounded-lg p-4 text-xs overflow-x-auto max-h-[460px] custom-scrollbar text-slate-300 font-mono"><code id="respOutput">// Respon dari server akan ditampilkan di sini...</code></pre>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 3: SECURITY & ROLE MATRIX -->
+    <div id="tabContentMatrix" class="hidden space-y-4">
+      <div class="bg-dark-900 border border-slate-800 rounded-xl p-5 space-y-3">
+        <h3 class="font-semibold text-slate-200">🛡️ Matriks Isolasi Hak Akses & Keamanan Token</h3>
+        <p class="text-xs text-slate-400">
+          Setiap token akses dibatasi sesuai perannya untuk mencegah kebocoran kuota atau akses model ilegal:
+          <span class="text-brand-400 font-medium">Master Key</span> memiliki akses tak terbatas,
+          <span class="text-cyan-400 font-medium">AGY_API_KEY</span> dibatasi ketat hanya untuk model cloud, dan
+          <span class="text-purple-400 font-medium">LLAMA_API_KEY</span> hanya untuk model offline lokal.
+        </p>
+      </div>
+
+      <div class="bg-dark-900 border border-slate-800 rounded-xl overflow-hidden shadow-sm">
+        <table class="w-full text-left border-collapse text-xs">
+          <thead>
+            <tr class="border-b border-slate-800 bg-dark-950/60 text-slate-400 font-mono">
+              <th class="p-3">JALUR ENDPOINT (ROUTE)</th>
+              <th class="p-3 text-center">TANPA TOKEN (ANON)</th>
+              <th class="p-3 text-center">AGY_API_KEY (CLOUD)</th>
+              <th class="p-3 text-center">LLAMA_API_KEY (LOCAL)</th>
+              <th class="p-3 text-center">MASTER API_KEY</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-800/60 font-mono">
+            <tr>
+              <td class="p-3 font-semibold text-slate-300">GET / & GET /health</td>
+              <td class="p-3 text-center"><span class="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">200 OK (Publik)</span></td>
+              <td class="p-3 text-center"><span class="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">200 OK</span></td>
+              <td class="p-3 text-center"><span class="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">200 OK</span></td>
+              <td class="p-3 text-center"><span class="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">200 OK</span></td>
+            </tr>
+            <tr>
+              <td class="p-3 font-semibold text-slate-300">GET & POST /agy/* (Antigravity Cloud)</td>
+              <td class="p-3 text-center"><span class="px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">401 Unauthorized</span></td>
+              <td class="p-3 text-center"><span class="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">200 OK (Allowed)</span></td>
+              <td class="p-3 text-center"><span class="px-2 py-0.5 rounded bg-rose-500/10 text-rose-400 border border-rose-500/20">403 Forbidden (Blocked)</span></td>
+              <td class="p-3 text-center"><span class="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">200 OK (Master)</span></td>
+            </tr>
+            <tr>
+              <td class="p-3 font-semibold text-slate-300">GET & POST /llama/* (llama.cpp Local)</td>
+              <td class="p-3 text-center"><span class="px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">401 Unauthorized</span></td>
+              <td class="p-3 text-center"><span class="px-2 py-0.5 rounded bg-rose-500/10 text-rose-400 border border-rose-500/20">403 Forbidden (Blocked)</span></td>
+              <td class="p-3 text-center"><span class="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">200 OK (Allowed)</span></td>
+              <td class="p-3 text-center"><span class="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">200 OK (Master)</span></td>
+            </tr>
+            <tr>
+              <td class="p-3 font-semibold text-slate-300">GET & POST /v1/* (Unified Smart Gateway)</td>
+              <td class="p-3 text-center"><span class="px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">401 Unauthorized</span></td>
+              <td class="p-3 text-center"><span class="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">Model Cloud Saja</span></td>
+              <td class="p-3 text-center"><span class="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">Model Lokal Saja</span></td>
+              <td class="p-3 text-center"><span class="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">Semua Model (Full)</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </main>
+
+  <footer class="border-t border-slate-800/80 py-4 text-center text-xs text-slate-500 font-mono">
+    Er AI Rest Testing Laboratory — Built with Vanilla JS & Tailwind CSS
+  </footer>
+
+  <!-- Application Script -->
+  <script>
+    let activeAuthChoice = 'master';
+
+    function getBaseUrl() {
+      return document.getElementById('cfgBaseUrl').value.replace(/\/+$/, '');
+    }
+
+    function getActiveToken() {
+      if (activeAuthChoice === 'master') return document.getElementById('cfgMasterKey').value;
+      if (activeAuthChoice === 'agy') return document.getElementById('cfgAgyKey').value;
+      if (activeAuthChoice === 'llama') return document.getElementById('cfgLlamaKey').value;
+      return '';
+    }
+
+    function setPreset(type) {
+      if (type === 'local') {
+        document.getElementById('cfgBaseUrl').value = 'http://localhost:8060';
+      } else if (type === 'vps') {
+        document.getElementById('cfgBaseUrl').value = 'https://roby-agy.mooo.com';
+      }
+      checkHealth();
+    }
+
+    function switchTab(tabId) {
+      ['suite', 'playground', 'matrix'].forEach(t => {
+        const btn = document.getElementById('tabBtn' + t.charAt(0).toUpperCase() + t.slice(1));
+        const content = document.getElementById('tabContent' + t.charAt(0).toUpperCase() + t.slice(1));
+        if (t === tabId) {
+          btn.className = 'px-4 py-2 font-medium border-b-2 border-brand-500 text-brand-400 flex items-center gap-2 transition';
+          content.classList.remove('hidden');
+        } else {
+          btn.className = 'px-4 py-2 font-medium border-b-2 border-transparent text-slate-400 hover:text-slate-200 flex items-center gap-2 transition';
+          content.classList.add('hidden');
+        }
+      });
+    }
+
+    async function checkHealth() {
+      const dot = document.getElementById('serverStatusDot');
+      const text = document.getElementById('serverStatusText');
+      dot.className = 'w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse';
+      text.innerText = 'Menghubungkan...';
+
+      try {
+        const start = performance.now();
+        const res = await fetch(`${getBaseUrl()}/health`);
+        const duration = Math.round(performance.now() - start);
+        if (res.ok) {
+          const data = await res.json();
+          dot.className = 'w-2.5 h-2.5 rounded-full bg-brand-500';
+          text.innerText = `Online (${duration}ms) — status: ${data.status}`;
+        } else {
+          dot.className = 'w-2.5 h-2.5 rounded-full bg-rose-500';
+          text.innerText = `HTTP ${res.status} (${duration}ms)`;
+        }
+      } catch (err) {
+        dot.className = 'w-2.5 h-2.5 rounded-full bg-rose-500';
+        text.innerText = `Offline: ${err.message}`;
+      }
+    }
+
+    // AUTOMATED TEST SUITE LOGIC
+    async function runAutomatedSuite() {
+      const tbody = document.getElementById('suiteTableBody');
+      const btn = document.getElementById('btnRunSuite');
+      const progressBox = document.getElementById('suiteProgressBar');
+      const progressFill = document.getElementById('suiteProgressFill');
+      const progressLabel = document.getElementById('suiteProgressLabel');
+      const progressStats = document.getElementById('suiteProgressStats');
+
+      btn.disabled = true;
+      btn.innerText = '⏳ Menguji...';
+      progressBox.classList.remove('hidden');
+      tbody.innerHTML = '';
+
+      const masterKey = document.getElementById('cfgMasterKey').value;
+      const agyKey = document.getElementById('cfgAgyKey').value;
+      const llamaKey = document.getElementById('cfgLlamaKey').value;
+
+      const testCases = [
+        { name: 'Server Banner & Info', method: 'GET', path: '/', token: '', expectedStatus: 200, desc: 'Verifikasi endpoint publik root' },
+        { name: 'System Health Check', method: 'GET', path: '/health', token: '', expectedStatus: 200, desc: 'Pemeriksaan status server aktif' },
+        { name: 'Tolak Permintaan Tanpa Token', method: 'GET', path: '/v1/models', token: '', expectedStatus: 401, desc: 'Keamanan: 401 jika tanpa header Auth' },
+        { name: 'Daftar Model Kompatibel OpenAI', method: 'GET', path: '/v1/models', token: masterKey, expectedStatus: 200, desc: 'Pengambilan model dinamis gateway' },
+        { name: 'Rangkuman Status Model Dinamis', method: 'GET', path: '/api/models', token: masterKey, expectedStatus: 200, desc: 'Detail inventaris model agy & llama' },
+        { name: 'Daftar Model Antigravity CLI', method: 'GET', path: '/agy/models', token: masterKey, expectedStatus: 200, desc: 'Endpoint khusus model cloud agy' },
+        { name: 'Daftar Model AGY OpenAI Format', method: 'GET', path: '/agy/v1/models', token: masterKey, expectedStatus: 200, desc: 'Endpoint OpenAI-compatible /agy/v1' },
+        { name: 'Status Engine llama.cpp', method: 'GET', path: '/llama/status', token: masterKey, expectedStatus: 200, desc: 'Pemeriksaan mode serve / binary lokal' },
+        { name: 'Daftar Model Lokal GGUF', method: 'GET', path: '/llama/models', token: masterKey, expectedStatus: 200, desc: 'Pemindaian otomatis berkas .gguf' },
+        { name: 'Daftar Model Llama OpenAI Format', method: 'GET', path: '/llama/v1/models', token: masterKey, expectedStatus: 200, desc: 'Endpoint OpenAI-compatible /llama/v1' },
+        { name: 'Akses AGY Key ke Antigravity', method: 'GET', path: '/agy/v1/models', token: agyKey, expectedStatus: 200, desc: 'Hak akses AGY_API_KEY valid' },
+        { name: 'Blokir AGY Key ke Mesin Llama', method: 'GET', path: '/llama/v1/models', token: agyKey, expectedStatus: 403, desc: 'Isolasi peran: Tolak token AGY di Llama' },
+        { name: 'Akses Llama Key ke Mesin Lokal', method: 'GET', path: '/llama/v1/models', token: llamaKey, expectedStatus: 200, desc: 'Hak akses LLAMA_API_KEY valid' },
+        { name: 'Blokir Llama Key ke Antigravity', method: 'GET', path: '/agy/v1/models', token: llamaKey, expectedStatus: 403, desc: 'Isolasi peran: Tolak token Llama di AGY' },
+      ];
+
+      let passedCount = 0;
+
+      for (let i = 0; i < testCases.length; i++) {
+        const tc = testCases[i];
+        progressLabel.innerText = `Menjalankan: ${tc.method} ${tc.path}`;
+        progressFill.style.width = `${Math.round(((i + 1) / testCases.length) * 100)}%`;
+
+        const start = performance.now();
+        let status = 0;
+        let responseSnippet = '';
+        try {
+          const headers = {};
+          if (tc.token) headers['Authorization'] = `Bearer ${tc.token}`;
+          const res = await fetch(`${getBaseUrl()}${tc.path}`, {
+            method: tc.method,
+            headers,
+          });
+          status = res.status;
+          const text = await res.text();
+          responseSnippet = text.slice(0, 80);
+        } catch (err) {
+          responseSnippet = err.message;
+        }
+        const duration = Math.round(performance.now() - start);
+        const passed = status === tc.expectedStatus;
+        if (passed) passedCount++;
+
+        progressStats.innerText = `${passedCount}/${i + 1} Berhasil`;
+
+        const badge = passed
+          ? `<span class="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">PASS (${status})</span>`
+          : `<span class="px-2 py-0.5 rounded bg-rose-500/10 text-rose-400 border border-rose-500/20">FAIL (${status})</span>`;
+
+        const tr = document.createElement('tr');
+        tr.className = 'hover:bg-dark-950/40 transition';
+        tr.innerHTML = `
+          <td class="p-3">${badge}</td>
+          <td class="p-3 text-brand-400 font-bold">${tc.method}</td>
+          <td class="p-3 font-semibold text-slate-200">${tc.path}</td>
+          <td class="p-3 text-slate-400 font-sans">${tc.name} <span class="text-slate-500 block text-[11px]">${tc.desc}</span></td>
+          <td class="p-3 text-slate-400">${tc.token ? (tc.token === masterKey ? 'Master' : (tc.token === agyKey ? 'AGY Key' : 'Llama Key')) : 'None'}</td>
+          <td class="p-3 text-right text-slate-300 font-mono">${duration}ms</td>
+        `;
+        tbody.appendChild(tr);
+      }
+
+      progressLabel.innerText = `Pengujian selesai: ${passedCount}/${testCases.length} endpoint lulus.`;
+      btn.disabled = false;
+      btn.innerText = '▶️ Jalankan Ulang';
+    }
+
+    // PLAYGROUND LOGIC
+    function setPlaygroundAuth(choice) {
+      activeAuthChoice = choice;
+      ['master', 'agy', 'llama', 'none'].forEach(c => {
+        const btn = document.getElementById('btnAuth' + c.charAt(0).toUpperCase() + c.slice(1));
+        if (c === choice) {
+          btn.className = 'px-2 py-1.5 rounded-md bg-brand-500/10 border border-brand-500/30 text-brand-400 font-medium';
+        } else {
+          btn.className = 'px-2 py-1.5 rounded-md bg-dark-950 border border-slate-800 text-slate-400 hover:text-slate-200';
+        }
+      });
+    }
+
+    function onPlaygroundEndpointChange() {
+      const sel = document.getElementById('pgEndpointSelect').value;
+      const [method, path] = sel.split('|');
+      document.getElementById('pgMethod').value = method;
+      document.getElementById('pgPath').value = path;
+
+      const bodyContainer = document.getElementById('pgBodyContainer');
+      const bodyTextarea = document.getElementById('pgBody');
+
+      if (method === 'GET') {
+        bodyContainer.classList.add('hidden');
+      } else {
+        bodyContainer.classList.remove('hidden');
+        if (path.includes('/chat/completions')) {
+          bodyTextarea.value = JSON.stringify({
+            model: path.includes('llama') ? 'Qwen3.5-0.8B-Q8_0' : 'gemini-3.8-flash-low',
+            messages: [
+              { role: 'user', content: 'Halo! Ceritakan dalam satu kalimat singkat apa keunggulan layanan Er AI Rest ini.' }
+            ],
+            stream: true,
+            max_tokens: 200
+          }, null, 2);
+        } else {
+          bodyTextarea.value = JSON.stringify({
+            prompt: 'Halo! Tolong perkenalkan dirimu.',
+            model: 'gemini-3.8-flash-low'
+          }, null, 2);
+        }
+      }
+    }
+
+    function formatPlaygroundJson() {
+      const area = document.getElementById('pgBody');
+      try {
+        area.value = JSON.stringify(JSON.parse(area.value), null, 2);
+      } catch (err) {
+        alert('JSON tidak valid: ' + err.message);
+      }
+    }
+
+    async function executePlaygroundRequest() {
+      const method = document.getElementById('pgMethod').value;
+      const path = document.getElementById('pgPath').value;
+      const token = getActiveToken();
+      const bodyContent = document.getElementById('pgBody').value;
+      const btn = document.getElementById('btnSendPlayground');
+      const badge = document.getElementById('respStatusBadge');
+      const durationBadge = document.getElementById('respDurationBadge');
+      const output = document.getElementById('respOutput');
+      const streamBox = document.getElementById('streamViewerBox');
+      const streamOutput = document.getElementById('streamOutput');
+      const streamCharCount = document.getElementById('streamCharCount');
+
+      btn.disabled = true;
+      btn.innerText = '⏳ Mengirim...';
+      badge.classList.add('hidden');
+      durationBadge.classList.add('hidden');
+      streamBox.classList.add('hidden');
+      streamOutput.innerText = '';
+      output.innerText = '// Menunggu respons dari server...';
+
+      const headers = {};
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+      if (method === 'POST') headers['Content-Type'] = 'application/json';
+
+      const start = performance.now();
+
+      try {
+        const response = await fetch(`${getBaseUrl()}${path}`, {
+          method,
+          headers,
+          body: method === 'POST' ? bodyContent : undefined
+        });
+
+        const duration = Math.round(performance.now() - start);
+        badge.innerText = `${response.status} ${response.statusText || ''}`;
+        badge.className = response.ok
+          ? 'text-xs font-mono px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+          : 'text-xs font-mono px-2 py-0.5 rounded-full bg-rose-500/10 text-rose-400 border border-rose-500/20';
+        badge.classList.remove('hidden');
+
+        durationBadge.innerText = `${duration}ms`;
+        durationBadge.classList.remove('hidden');
+
+        const contentType = response.headers.get('content-type') || '';
+
+        // Handle SSE Streaming Real-Time
+        if (contentType.includes('event-stream') && response.body) {
+          streamBox.classList.remove('hidden');
+          const reader = response.body.getReader();
+          const decoder = new TextDecoder();
+          let streamText = '';
+          let rawBuffer = '';
+
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+
+            const chunk = decoder.decode(value, { stream: true });
+            rawBuffer += chunk;
+            output.innerText = rawBuffer;
+
+            const lines = chunk.split('\n');
+            for (const line of lines) {
+              const trimmed = line.trim();
+              if (trimmed.startsWith('data: ') && trimmed !== 'data: [DONE]') {
+                try {
+                  const parsed = JSON.parse(trimmed.slice(6));
+                  const delta = parsed.choices?.[0]?.delta?.content || '';
+                  if (delta) {
+                    streamText += delta;
+                    streamOutput.innerText = streamText;
+                    streamCharCount.innerText = `${streamText.length} karakter`;
+                    streamOutput.scrollTop = streamOutput.scrollHeight;
+                  }
+                } catch {}
+              }
+            }
+          }
+        } else {
+          // Normal JSON / Text
+          const text = await response.text();
+          try {
+            output.innerText = JSON.stringify(JSON.parse(text), null, 2);
+          } catch {
+            output.innerText = text;
+          }
+        }
+      } catch (err) {
+        badge.innerText = 'Network Error';
+        badge.className = 'text-xs font-mono px-2 py-0.5 rounded-full bg-rose-500/10 text-rose-400 border border-rose-500/20';
+        badge.classList.remove('hidden');
+        output.innerText = `Error: ${err.message}\nPastikan server sudah aktif di ${getBaseUrl()}`;
+      } finally {
+        btn.disabled = false;
+        btn.innerText = '🚀 Kirim Permintaan (Send Request)';
+      }
+    }
+
+    function copyResponse() {
+      const output = document.getElementById('respOutput').innerText;
+      navigator.clipboard.writeText(output);
+      alert('Respon berhasil disalin ke clipboard!');
+    }
+
+    // Initialize
+    onPlaygroundEndpointChange();
+    checkHealth();
+  </script>
+</body>
+</html>
