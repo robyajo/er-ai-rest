@@ -1,0 +1,42 @@
+{
+  "project": {
+    "name": "Er AI Rest"
+  },
+  "date": "2026-11-02",
+  "type": "feature",
+  "title": {
+    "id": "Peluncuran Layanan Gerbang Kecerdasan Artifisial Terpadu",
+    "en": "Launch of Unified Artificial Intelligence Gateway Service"
+  },
+  "body": {
+    "id": "Penyediaan layanan gerbang antarmuka cerdas terpadu untuk integrasi asisten virtual ke berbagai aplikasi dengan dukungan transmisi langsung dan percakapan berkelanjutan.",
+    "en": "Introduction of a unified intelligent gateway service for integrating virtual assistants into diverse client applications with real-time streaming and persistent conversational support."
+  },
+  "items": [
+    {
+      "type": "new",
+      "id": "Penyediaan saluran integrasi standar yang kompatibel dengan berbagai aplikasi klien dan platform obrolan cerdas.",
+      "en": "Standard integration channel compatible with various client applications and intelligent chat platforms."
+    },
+    {
+      "type": "new",
+      "id": "Dukungan transmisi respons teks secara langsung dan bertahap untuk pengalaman interaksi tanpa jeda.",
+      "en": "Real-time streaming text transmission for seamless, lag-free interaction."
+    },
+    {
+      "type": "new",
+      "id": "Dukungan percakapan berkelanjutan dengan pemeliharaan riwayat sesi secara otomatis.",
+      "en": "Persistent multi-turn conversation support with automatic session history continuity."
+    },
+    {
+      "type": "new",
+      "id": "Fleksibilitas pemilihan profil kecerdasan artifisial sesuai kebutuhan penalaran dan kecepatan respon.",
+      "en": "Flexible selection of artificial intelligence profiles tailored for reasoning depth and response speed."
+    },
+    {
+      "type": "improvement",
+      "id": "Sistem otentikasi token akses mandiri untuk melindungi layanan dan menjamin keamanan pertukaran data.",
+      "en": "Self-hosted access token authentication ensuring protected service access and secure data exchange."
+    }
+  ]
+}
