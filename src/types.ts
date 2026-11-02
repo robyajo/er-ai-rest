@@ -1,12 +1,17 @@
+export type ProviderType = "agy" | "llamacpp" | "llama" | "auto";
+
 export interface ChatRequest {
   prompt: string;
   conversation_id?: string;
   model?: string;
-  effort?: 'low' | 'medium' | 'high' | 'xhigh' | 'max';
-  mode?: 'accept-edits' | 'auto' | 'plan';
+  provider?: ProviderType;
+  effort?: "low" | "medium" | "high" | "xhigh" | "max";
+  mode?: "accept-edits" | "auto" | "plan";
   dangerously_skip_permissions?: boolean;
   stream?: boolean;
   cwd?: string;
+  temperature?: number;
+  max_tokens?: number;
 }
 
 export interface ChatResponse {
@@ -18,15 +23,16 @@ export interface ChatResponse {
   usage?: {
     input_tokens: number;
     output_tokens: number;
-    thinking_tokens: number;
+    thinking_tokens?: number;
     cache_read_tokens?: number;
     total_tokens: number;
   };
   error?: string;
+  provider?: string;
 }
 
 export interface AgyStreamEvent {
-  event: 'init' | 'step_update' | 'result';
+  event: "init" | "step_update" | "result";
   conversation_id?: string;
   init?: {
     cwd: string;
@@ -53,7 +59,7 @@ export interface AgyStreamEvent {
 }
 
 export interface OpenAIMessage {
-  role: 'system' | 'user' | 'assistant';
+  role: "system" | "user" | "assistant";
   content: string;
 }
 
@@ -63,4 +69,12 @@ export interface OpenAIChatRequest {
   stream?: boolean;
   temperature?: number;
   max_tokens?: number;
+  provider?: ProviderType;
+}
+
+export interface ModelInfo {
+  id: string;
+  name: string;
+  provider: "agy" | "llamacpp";
+  description?: string;
 }

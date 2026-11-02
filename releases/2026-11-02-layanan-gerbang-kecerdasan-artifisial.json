@@ -5,18 +5,23 @@
   "date": "2026-11-02",
   "type": "feature",
   "title": {
-    "id": "Peluncuran Layanan Gerbang Kecerdasan Artifisial Terpadu",
-    "en": "Launch of Unified Artificial Intelligence Gateway Service"
+    "id": "Peluncuran Layanan Gerbang Kecerdasan Artifisial Terpadu & Mesin Lokal Mandiri",
+    "en": "Launch of Unified Artificial Intelligence Gateway & Self-Hosted Local Engine"
   },
   "body": {
-    "id": "Penyediaan layanan gerbang antarmuka cerdas terpadu untuk integrasi asisten virtual ke berbagai aplikasi dengan dukungan transmisi langsung dan percakapan berkelanjutan.",
-    "en": "Introduction of a unified intelligent gateway service for integrating virtual assistants into diverse client applications with real-time streaming and persistent conversational support."
+    "id": "Penyediaan layanan gerbang antarmuka cerdas terpadu untuk integrasi asisten virtual ke berbagai aplikasi dengan dukungan transmisi langsung, percakapan berkelanjutan, serta opsi pemrosesan lokal mandiri tanpa ketergantungan internet.",
+    "en": "Introduction of a unified intelligent gateway service for integrating virtual assistants into diverse client applications with real-time streaming, persistent conversations, and self-hosted local processing without internet dependency."
   },
   "items": [
     {
       "type": "new",
       "id": "Penyediaan saluran integrasi standar yang kompatibel dengan berbagai aplikasi klien dan platform obrolan cerdas.",
       "en": "Standard integration channel compatible with various client applications and intelligent chat platforms."
+    },
+    {
+      "type": "new",
+      "id": "Dukungan mesin pemrosesan model lokal mandiri yang beroperasi langsung di perangkat komputer secara aman, privat, dan cepat.",
+      "en": "Support for self-hosted local model processing operating directly on user devices with high privacy, speed, and safety."
     },
     {
       "type": "new",
@@ -29,9 +34,9 @@
       "en": "Persistent multi-turn conversation support with automatic session history continuity."
     },
     {
-      "type": "new",
-      "id": "Fleksibilitas pemilihan profil kecerdasan artifisial sesuai kebutuhan penalaran dan kecepatan respon.",
-      "en": "Flexible selection of artificial intelligence profiles tailored for reasoning depth and response speed."
+      "type": "improvement",
+      "id": "Penyesuaian rute cerdas otomatis antara model penalaran mendalam dan model lokal yang hemat daya.",
+      "en": "Intelligent automated routing between deep reasoning models and power-efficient local models."
     },
     {
       "type": "improvement",
