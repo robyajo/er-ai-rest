@@ -6,7 +6,7 @@ Server **`agy-rest`** menyediakan endpoint yang 100% kompatibel dengan **OpenAI 
 
 ## 🌐 Informasi Parameter Sambungan
 
-- **Base URL:** `https://roby-agy.mooo.com/v1` (atau `http://localhost:8060/v1`)
+- **Base URL:** `https://er-ai-api.mooo.com/v1` (atau `http://localhost:8060/v1`)
 - **API Key:** `<API_KEY_ANDA>` (yang disetel di `.env` / systemd)
 - **Daftar Pilihan Model:**
   - **Model Antigravity (Cloud/Hybrid):**
@@ -35,7 +35,7 @@ Server **`agy-rest`** menyediakan endpoint yang 100% kompatibel dengan **OpenAI 
 3. Di bagian **Model Provider**, pilih **OpenAI**.
 4. Isi konfigurasi:
    - **API Key:** `sk-agy-rahasia-123456`
-   - **OpenAI Endpoint / Proxy:** `https://roby-agy.mooo.com` (atau dengan `/v1`)
+   - **OpenAI Endpoint / Proxy:** `https://er-ai-api.mooo.com` (atau dengan `/v1`)
 5. Di bagian **Custom Models**, tambahkan: `gemini-3.8-flash-high,claude-sonnet-4-6,qwen3.5-0.8b,llama-3.2-3b`.
 
 ---
@@ -46,7 +46,7 @@ Server **`agy-rest`** menyediakan endpoint yang 100% kompatibel dengan **OpenAI 
 2. Masuk ke menu **Settings** $\rightarrow$ **Model Provider**.
 3. Pilih **OpenAI API**.
 4. Masukkan parameter:
-   - **API Host:** `https://roby-agy.mooo.com`
+   - **API Host:** `https://er-ai-api.mooo.com`
    - **API Key:** `sk-agy-rahasia-123456`
    - **Model:** `gemini-3.8-flash-high` (atau model lokal `qwen3.5-0.8b`)
 5. Klik **Save** dan Anda sudah bisa mengobrol!
@@ -57,7 +57,7 @@ Server **`agy-rest`** menyediakan endpoint yang 100% kompatibel dengan **OpenAI 
 
 1. Masuk ke halaman **Admin Panel** $\rightarrow$ **Settings** $\rightarrow$ **Connections**.
 2. Tambahkan sambungan OpenAI baru:
-   - **Base URL:** `https://roby-agy.mooo.com/v1`
+   - **Base URL:** `https://er-ai-api.mooo.com/v1`
    - **API Key:** `sk-agy-rahasia-123456`
 3. Klik tombol **Verify Connection**.
 
@@ -74,7 +74,7 @@ from openai import OpenAI
 
 # Inisialisasi klien dengan Base URL dan API Key server Anda
 client = OpenAI(
-    base_url="https://roby-agy.mooo.com/v1",
+    base_url="https://er-ai-api.mooo.com/v1",
     api_key="sk-agy-rahasia-123456"
 )
 
@@ -105,7 +105,7 @@ Pastikan paket `openai` terpasang (`npm install openai`):
 import OpenAI from "openai";
 
 const client = new OpenAI({
-  baseURL: "https://roby-agy.mooo.com/v1",
+  baseURL: "https://er-ai-api.mooo.com/v1",
   apiKey: "sk-agy-rahasia-123456",
 });
 
@@ -137,7 +137,7 @@ main().catch(console.error);
 #### Streaming Request (Gunakan flag `-N`):
 
 ```bash
-curl -N -X POST https://roby-agy.mooo.com/v1/chat/completions \
+curl -N -X POST https://er-ai-api.mooo.com/v1/chat/completions \
   -H "Authorization: Bearer sk-agy-rahasia-123456" \
   -H "Content-Type: application/json" \
   -d '{
@@ -152,7 +152,7 @@ curl -N -X POST https://roby-agy.mooo.com/v1/chat/completions \
 #### Non-Streaming Request (JSON Lengkap):
 
 ```bash
-curl -X POST https://roby-agy.mooo.com/v1/chat/completions \
+curl -X POST https://er-ai-api.mooo.com/v1/chat/completions \
   -H "Authorization: Bearer sk-agy-rahasia-123456" \
   -H "Content-Type: application/json" \
   -d '{
