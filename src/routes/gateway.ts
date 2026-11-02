@@ -264,11 +264,7 @@ gatewayRouter.post('/v1/chat/completions', async (c) => {
 
   const model =
     body.model ||
-    (isLlama
-      ? 'qwen3.5-0.8b'
-      : process.env.DEFAULT_PROVIDER === 'llamacpp'
-      ? 'qwen3.5-0.8b'
-      : 'gemini-3.8-flash-high');
+    (isLlama ? 'qwen3.5-0.8b' : 'gemini-3.8-flash-high');
   const reqId = `chatcmpl-${randomUUID()}`;
 
   if (body.stream) {

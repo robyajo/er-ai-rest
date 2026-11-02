@@ -57,14 +57,11 @@ export function isLlamaCppTarget(model?: string, provider?: string): boolean {
   if (provider === 'agy') return false;
 
   if (!model) {
-    return (
-      process.env.DEFAULT_PROVIDER === 'llamacpp' ||
-      process.env.DEFAULT_PROVIDER === 'llama'
-    );
+    return false;
   }
 
   const m = model.toLowerCase();
-  if (
+  return (
     m.startsWith('llama-') ||
     m.startsWith('llama/') ||
     m.startsWith('llamacpp/') ||
@@ -77,25 +74,7 @@ export function isLlamaCppTarget(model?: string, provider?: string): boolean {
     m.startsWith('gemma') ||
     m.endsWith('.gguf') ||
     m === 'local-gguf'
-  ) {
-    return true;
-  }
-
-  if (
-    process.env.DEFAULT_PROVIDER === 'llamacpp' ||
-    process.env.DEFAULT_PROVIDER === 'llama'
-  ) {
-    if (
-      m.startsWith('gemini-') ||
-      m.startsWith('claude-') ||
-      m.startsWith('gpt-oss-')
-    ) {
-      return false;
-    }
-    return true;
-  }
-
-  return false;
+  );
 }
 
 export function getLlamaServerUrl(): string {

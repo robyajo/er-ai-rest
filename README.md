@@ -74,8 +74,6 @@ AGY_API_KEY=your-antigravity-api-key
 # Kunci khusus llama.cpp (Model GGUF lokal offline)
 LLAMA_API_KEY=your-llamacpp-api-key
 
-# Default Engine Provider ('agy' or 'llamacpp')
-DEFAULT_PROVIDER=agy
 
 # Antigravity CLI Path
 AGY_PATH=/home/roby/.local/bin/agy
